@@ -46,6 +46,8 @@ class PluginManager:
     def __init__(self, pyboy, mb, pyboy_argv):
         self.pyboy = pyboy
 
+        self.generic_game_wrapper = PyBoyGameWrapper(pyboy, mb, pyboy_argv)
+        self.generic_game_wrapper_enabled = False
         # plugins_enabled
         self.window_sdl2 = WindowSDL2(pyboy, mb, pyboy_argv)
         self.window_sdl2_enabled = self.window_sdl2.enabled()
@@ -79,12 +81,17 @@ class PluginManager:
 
     def gamewrapper(self):
         # gamewrapper
-        if self.game_wrapper_super_mario_land_enabled: return self.game_wrapper_super_mario_land
-        if self.game_wrapper_tetris_enabled: return self.game_wrapper_tetris
-        if self.game_wrapper_kirby_dream_land_enabled: return self.game_wrapper_kirby_dream_land
-        if self.game_wrapper_pokemon_gen1_enabled: return self.game_wrapper_pokemon_gen1
+        if self.game_wrapper_super_mario_land_enabled:
+            return self.game_wrapper_super_mario_land
+        if self.game_wrapper_tetris_enabled:
+            return self.game_wrapper_tetris
+        if self.game_wrapper_kirby_dream_land_enabled:
+            return self.game_wrapper_kirby_dream_land
+        if self.game_wrapper_pokemon_gen1_enabled:
+            return self.game_wrapper_pokemon_gen1
         # gamewrapper end
-        return None
+        self.generic_game_wrapper_enabled = True
+        return self.generic_game_wrapper
 
     def handle_events(self, events):
         # foreach windows events = [].handle_events(events)
@@ -119,6 +126,8 @@ class PluginManager:
         if self.game_wrapper_pokemon_gen1_enabled:
             events = self.game_wrapper_pokemon_gen1.handle_events(events)
         # foreach end
+        if self.generic_game_wrapper_enabled:
+            events = self.generic_game_wrapper.handle_events(events)
         return events
 
     def post_tick(self):
@@ -144,6 +153,8 @@ class PluginManager:
         if self.game_wrapper_pokemon_gen1_enabled:
             self.game_wrapper_pokemon_gen1.post_tick()
         # foreach end
+        if self.generic_game_wrapper_enabled:
+            self.generic_game_wrapper.post_tick()
 
         self._post_tick_windows()
 
@@ -179,16 +190,20 @@ class PluginManager:
         # foreach windows done = [].frame_limiter(speed), if done: return
         if self.window_sdl2_enabled:
             done = self.window_sdl2.frame_limiter(speed)
-            if done: return
+            if done:
+                return
         if self.window_open_gl_enabled:
             done = self.window_open_gl.frame_limiter(speed)
-            if done: return
+            if done:
+                return
         if self.window_null_enabled:
             done = self.window_null.frame_limiter(speed)
-            if done: return
+            if done:
+                return
         if self.debug_enabled:
             done = self.debug.frame_limiter(speed)
-            if done: return
+            if done:
+                return
         # foreach end
 
     def window_title(self):
@@ -260,7 +275,8 @@ class PluginManager:
         if self.game_wrapper_pokemon_gen1_enabled:
             self.game_wrapper_pokemon_gen1.stop()
         # foreach end
-        pass
+        if self.generic_game_wrapper_enabled:
+            self.generic_game_wrapper.stop()
 
     def handle_breakpoint(self):
         if self.debug_enabled:
