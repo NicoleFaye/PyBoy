@@ -88,7 +88,7 @@ class Debug(PyBoyWindowPlugin):
         if not self.enabled():
             return
 
-        self.cgb = mb.cgb
+        self.cgb = mb.cartridge_cgb
 
         self.rom_symbols = {}
         if pyboy_argv.get("ROM"):
