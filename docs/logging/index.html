@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>pyboy.plugins API documentation</title>
-<meta name="description" content="Plugins that extend PyBoy&#39;s functionality. The only publicly exposed, are the game wrappers." />
+<title>pyboy.logging API documentation</title>
+<meta name="description" content="" />
 <link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
 <link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
@@ -18,69 +18,126 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pyboy.plugins</code></h1>
+<h1 class="title">Module <code>pyboy.logging</code></h1>
 </header>
 <section id="section-intro">
-<p>Plugins that extend PyBoy's functionality. The only publicly exposed, are the game wrappers.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">#
-# License: See LICENSE.md file
-# GitHub: https://github.com/Baekalfen/PyBoy
-#
-&#34;&#34;&#34;
-Plugins that extend PyBoy&#39;s functionality. The only publicly exposed, are the game wrappers.
-&#34;&#34;&#34;
+<pre><code class="python">DEBUG, INFO, WARNING, ERROR, CRITICAL, = range(5)
 
-__pdoc__ = {
-    # docs exclude
-    &#34;disable_input&#34;: False,
-    &#34;rewind&#34;: False,
-    &#34;window_sdl2&#34;: False,
-    &#34;screenshot_recorder&#34;: False,
-    &#34;debug_prompt&#34;: False,
-    &#34;screen_recorder&#34;: False,
-    &#34;debug&#34;: False,
-    &#34;manager&#34;: False,
-    &#34;record_replay&#34;: False,
-    &#34;manager_gen&#34;: False,
-    &#34;window_open_gl&#34;: False,
-    &#34;auto_pause&#34;: False,
-    &#34;window_null&#34;: False,
-    # docs exclude end
-}</code></pre>
+_log_level = ERROR
+
+
+def get_log_level():
+    return _log_level
+
+
+def _log(name, pre_msg, level, fmt, args):
+    # print(name, pre_msg, level, fmt, args)
+    if get_log_level() &gt; level:
+        return
+    if args:
+        msg = fmt % tuple(args)
+    else:
+        msg = fmt
+    print(name.ljust(30) + &#34; &#34; + pre_msg.ljust(8) + &#34; &#34; + msg)
+
+
+try:
+    from .logging import Logger
+except ImportError:
+    from ._logging import Logger
+
+
+def log_level(level):
+    global _log_level
+    if level == &#34;DEBUG&#34;:
+        level = DEBUG
+    elif level == &#34;INFO&#34;:
+        level = INFO
+    elif level == &#34;WARNING&#34;:
+        level = WARNING
+    elif level == &#34;ERROR&#34;:
+        level = ERROR
+    elif level == &#34;CRITICAL&#34;:
+        level = CRITICAL
+    elif isinstance(level, int):
+        pass
+    else:
+        raise ValueError(f&#34;Invalid log level: {level}&#34;)
+
+    _log_level = level
+
+
+def get_logger(name):
+    return Logger(name)</code></pre>
 </details>
 </section>
 <section>
-<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt><code class="name"><a title="pyboy.plugins.base_plugin" href="base_plugin.html">pyboy.plugins.base_plugin</a></code></dt>
+<dt id="pyboy.logging.get_log_level"><code class="name flex">
+<span>def <span class="ident">get_log_level</span></span>(<span>)</span>
+</code></dt>
 <dd>
 <section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_log_level():
+    return _log_level</code></pre>
+</details>
 </dd>
-<dt><code class="name"><a title="pyboy.plugins.game_wrapper_kirby_dream_land" href="game_wrapper_kirby_dream_land.html">pyboy.plugins.game_wrapper_kirby_dream_land</a></code></dt>
+<dt id="pyboy.logging.log_level"><code class="name flex">
+<span>def <span class="ident">log_level</span></span>(<span>level)</span>
+</code></dt>
 <dd>
 <section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def log_level(level):
+    global _log_level
+    if level == &#34;DEBUG&#34;:
+        level = DEBUG
+    elif level == &#34;INFO&#34;:
+        level = INFO
+    elif level == &#34;WARNING&#34;:
+        level = WARNING
+    elif level == &#34;ERROR&#34;:
+        level = ERROR
+    elif level == &#34;CRITICAL&#34;:
+        level = CRITICAL
+    elif isinstance(level, int):
+        pass
+    else:
+        raise ValueError(f&#34;Invalid log level: {level}&#34;)
+
+    _log_level = level</code></pre>
+</details>
 </dd>
-<dt><code class="name"><a title="pyboy.plugins.game_wrapper_pokemon_gen1" href="game_wrapper_pokemon_gen1.html">pyboy.plugins.game_wrapper_pokemon_gen1</a></code></dt>
+<dt id="pyboy.logging.get_logger"><code class="name flex">
+<span>def <span class="ident">get_logger</span></span>(<span>name)</span>
+</code></dt>
 <dd>
 <section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="pyboy.plugins.game_wrapper_super_mario_land" href="game_wrapper_super_mario_land.html">pyboy.plugins.game_wrapper_super_mario_land</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="pyboy.plugins.game_wrapper_tetris" href="game_wrapper_tetris.html">pyboy.plugins.game_wrapper_tetris</a></code></dt>
-<dd>
-<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_logger(name):
+    return Logger(name)</code></pre>
+</details>
 </dd>
 </dl>
-</section>
-<section>
-</section>
-<section>
 </section>
 <section>
 </section>
@@ -96,13 +153,11 @@ __pdoc__ = {
 <li><code><a title="pyboy" href="../index.html">pyboy</a></code></li>
 </ul>
 </li>
-<li><h3><a href="#header-submodules">Sub-modules</a></h3>
-<ul>
-<li><code><a title="pyboy.plugins.base_plugin" href="base_plugin.html">pyboy.plugins.base_plugin</a></code></li>
-<li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land" href="game_wrapper_kirby_dream_land.html">pyboy.plugins.game_wrapper_kirby_dream_land</a></code></li>
-<li><code><a title="pyboy.plugins.game_wrapper_pokemon_gen1" href="game_wrapper_pokemon_gen1.html">pyboy.plugins.game_wrapper_pokemon_gen1</a></code></li>
-<li><code><a title="pyboy.plugins.game_wrapper_super_mario_land" href="game_wrapper_super_mario_land.html">pyboy.plugins.game_wrapper_super_mario_land</a></code></li>
-<li><code><a title="pyboy.plugins.game_wrapper_tetris" href="game_wrapper_tetris.html">pyboy.plugins.game_wrapper_tetris</a></code></li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="pyboy.logging.get_log_level" href="#pyboy.logging.get_log_level">get_log_level</a></code></li>
+<li><code><a title="pyboy.logging.log_level" href="#pyboy.logging.log_level">log_level</a></code></li>
+<li><code><a title="pyboy.logging.get_logger" href="#pyboy.logging.get_logger">get_logger</a></code></li>
 </ul>
 </li>
 </ul>
