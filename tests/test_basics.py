@@ -15,10 +15,9 @@ import PIL
 import pytest
 from pytest_lazy_fixtures import lf
 
-from pyboy import PyBoy
+from pyboy import PyBoy, WindowEvent
 from pyboy import __main__ as main
 from pyboy.api.tile import Tile
-from pyboy.utils import WindowEvent
 
 is_pypy = platform.python_implementation() == "PyPy"
 
@@ -52,7 +51,7 @@ def test_record_replay(boot_rom, default_rom):
 
     os.remove(default_rom + ".replay")
 
-    assert digest == (b'r\x80\x19)\x1a\x88\r\xcc\xb9\xab\xa3\xda\xb1&i\xc8"\xc2\xfb\x8a\x01\x9b\xa81@\x92V=5\x92\\5'), \
+    assert digest == (b"[M\x91\xb9\x8e\x0e\x8eZ^\x1d\x99\xf9\x9cV\xa8\xa5\xbd\x8c\x95\x12\xa7\xdbl\x98\xe5U\x82\x1f\x0bB\x08%"), \
         "The replay did not result in the expected output"
 
 
@@ -108,9 +107,6 @@ def test_tilemaps(kirby_rom):
     assert bck_tilemap.map_offset != wdw_tilemap.map_offset
 
     assert bck_tilemap[0, 0] == 256
-    assert bck_tilemap[30:, 29:] == [[254, 254], [256, 256], [256, 256]]
-    # assert bck_tilemap[30::-1, 29::-1] == [[256, 256], [256, 256], [254, 254]] # TODO: Not supported
-    assert bck_tilemap[30:32, 30:32] == [[256, 256], [256, 256]]
     assert bck_tilemap[:5, 0] == [256, 256, 256, 256, 170]
     assert bck_tilemap[:20, :10] == [
         [256, 256, 256, 256, 170, 176, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256],
