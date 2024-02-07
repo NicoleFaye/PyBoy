@@ -29,12 +29,12 @@ RESET_REPLAYS = False
 
 
 def verify_screen_image_np(pyboy, saved_array):
-    match = np.all(np.frombuffer(saved_array, dtype=np.uint8).reshape(144, 160, 3) == pyboy.screen.screen_ndarray())
+    match = np.all(np.frombuffer(saved_array, dtype=np.uint8).reshape(144, 160, 3) == pyboy.screen.ndarray)
     if not match and not os.environ.get("TEST_CI"):
         from PIL import Image
         original = Image.frombytes("RGB", (160, 144), np.frombuffer(saved_array, dtype=np.uint8).reshape(144, 160, 3))
         original.show()
-        new = pyboy.screen.screen_image()
+        new = pyboy.screen.image.convert("RGB")
         new.show()
         import PIL.ImageChops
         PIL.ImageChops.difference(original, new).show()
@@ -66,7 +66,7 @@ def move_gif(game, dest):
 def replay(
     ROM,
     replay,
-    window="headless",
+    window="null",
     verify=False,
     record_gif=None,
     gif_destination=None,
@@ -81,6 +81,9 @@ def replay(
 ):
     with open(replay, "rb") as f:
         recorded_input, b64_romhash, b64_state = json.loads(zlib.decompress(f.read()).decode("ascii"))
+        if ROM.endswith("default_rom.gb"):
+            # Hotfixing replay as compiler has changed
+            b64_romhash = "MyTqOcXFBpPDbCoWMLrD4rGlM3RMLr+VYUPMFIFC5Xw="
 
     verify_file_hash(ROM, b64_romhash)
     state_data = io.BytesIO(base64.b64decode(b64_state.encode("utf8"))) if b64_state is not None else None
@@ -93,7 +96,7 @@ def replay(
         rewind=rewind,
         randomize=randomize,
         cgb=cgb,
-        record_input=(RESET_REPLAYS and window in ["SDL2", "headless", "OpenGL"]),
+        record_input=(RESET_REPLAYS and window in ["SDL2", "null", "OpenGL"]),
     )
     pyboy.set_emulation_speed(0)
     if state_data is not None:
@@ -142,7 +145,7 @@ def replay(
         recording ^= True
 
     if gif_destination:
-        move_gif(pyboy.cartridge_title(), gif_destination)
+        move_gif(pyboy.cartridge_title, gif_destination)
         if gif_hash is not None and not overwrite and sys.platform == "darwin":
             verify_file_hash(gif_destination, gif_hash)
 
@@ -150,7 +153,7 @@ def replay(
         with open(replay, "wb") as f:
             f.write(
                 zlib.compress(
-                    json.dumps((pyboy.plugin_manager.record_replay.recorded_input, b64_romhash, b64_state)).encode()
+                    json.dumps((pyboy._plugin_manager.record_replay.recorded_input, b64_romhash, b64_state)).encode()
                 )
             )
 
