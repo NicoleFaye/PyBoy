@@ -125,7 +125,7 @@ class PyBoyGameWrapper(PyBoyPlugin):
     cartridge_title = None
     argv = [(&#34;--game-wrapper&#34;, {&#34;action&#34;: &#34;store_true&#34;, &#34;help&#34;: &#34;Enable game wrapper for the current game&#34;})]
 
-    mapping_one_to_one = np.arange(384 * 2, dtype=np.uint8)
+    mapping_minimal = np.arange(384 * 2, dtype=np.uint8)
     &#34;&#34;&#34;
     Example mapping of 1:1
     &#34;&#34;&#34;
@@ -141,22 +141,15 @@ class PyBoyGameWrapper(PyBoyPlugin):
         self._tile_cache_invalid = True
         self._sprite_cache_invalid = True
 
-        self.shape = None
-        &#34;&#34;&#34;
-        The shape of the game area. This can be modified with `pyboy.PyBoy.game_area_dimensions`.
-
-        Example:
-        ```python
-        &gt;&gt;&gt; pyboy.game_wrapper.shape
-        (32, 32)
-        ```
-        &#34;&#34;&#34;
-        self._set_dimensions(*game_area_section, game_area_follow_scxy)
-        width, height = self.shape
+        self.game_area_section = game_area_section
+        self.game_area_follow_scxy = game_area_follow_scxy
+        width = self.game_area_section[2] - self.game_area_section[0]
+        height = self.game_area_section[3] - self.game_area_section[1]
         self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (width*height*4))
-        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(width, height))
 
         self.saved_state = io.BytesIO()
+
+        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(width, height))
 
     def __cinit__(self, pyboy, mb, pyboy_argv, *args, **kwargs):
         self.tilemap_background = self.pyboy.tilemap_background
@@ -288,46 +281,12 @@ class PyBoyGameWrapper(PyBoyPlugin):
         self.mapping = np.asarray(mapping, dtype=np.uint32)
         self.sprite_offset = sprite_offest
 
-    def _set_dimensions(self, x, y, width, height, follow_scrolling=True):
-        self.shape = (width, height)
-        self.game_area_section = (x, y, width, height)
-        self.game_area_follow_scxy = follow_scrolling
-
     def _sum_number_on_screen(self, x, y, length, blank_tile_identifier, tile_identifier_offset):
         number = 0
         for i, x in enumerate(self.tilemap_background[x:x + length, y]):
             if x != blank_tile_identifier:
                 number += (x+tile_identifier_offset) * (10**(length - 1 - i))
-        return number
-
-    def __repr__(self):
-        adjust = 4
-        # yapf: disable
-
-        sprites = &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()])
-
-        tiles_header = (
-            &#34; &#34;*4 + &#34;&#34;.join([f&#34;{i: &gt;4}&#34; for i in range(self.shape[0])]) + &#34;\n&#34; +
-            &#34;_&#34;*(adjust*self.shape[0]+4)
-        )
-
-        tiles = &#34;\n&#34;.join(
-                [
-                    (f&#34;{i: &lt;3}|&#34; + &#34;&#34;.join([str(tile).rjust(adjust) for tile in line])).strip()
-                    for i, line in enumerate(self.game_area())
-                ]
-            )
-
-        return (
-            &#34;Sprites on screen:\n&#34; +
-            sprites +
-            &#34;\n&#34; +
-            &#34;Tiles on screen:\n&#34; +
-            tiles_header +
-            &#34;\n&#34; +
-            tiles
-        )
-        # yapf: enable</code></pre>
+        return number</code></pre>
 </details>
 </section>
 <section>
@@ -359,7 +318,7 @@ class PyBoyGameWrapper(PyBoyPlugin):
     cartridge_title = None
     argv = [(&#34;--game-wrapper&#34;, {&#34;action&#34;: &#34;store_true&#34;, &#34;help&#34;: &#34;Enable game wrapper for the current game&#34;})]
 
-    mapping_one_to_one = np.arange(384 * 2, dtype=np.uint8)
+    mapping_minimal = np.arange(384 * 2, dtype=np.uint8)
     &#34;&#34;&#34;
     Example mapping of 1:1
     &#34;&#34;&#34;
@@ -375,22 +334,15 @@ class PyBoyGameWrapper(PyBoyPlugin):
         self._tile_cache_invalid = True
         self._sprite_cache_invalid = True
 
-        self.shape = None
-        &#34;&#34;&#34;
-        The shape of the game area. This can be modified with `pyboy.PyBoy.game_area_dimensions`.
-
-        Example:
-        ```python
-        &gt;&gt;&gt; pyboy.game_wrapper.shape
-        (32, 32)
-        ```
-        &#34;&#34;&#34;
-        self._set_dimensions(*game_area_section, game_area_follow_scxy)
-        width, height = self.shape
+        self.game_area_section = game_area_section
+        self.game_area_follow_scxy = game_area_follow_scxy
+        width = self.game_area_section[2] - self.game_area_section[0]
+        height = self.game_area_section[3] - self.game_area_section[1]
         self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (width*height*4))
-        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(width, height))
 
         self.saved_state = io.BytesIO()
+
+        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(width, height))
 
     def __cinit__(self, pyboy, mb, pyboy_argv, *args, **kwargs):
         self.tilemap_background = self.pyboy.tilemap_background
@@ -522,46 +474,12 @@ class PyBoyGameWrapper(PyBoyPlugin):
         self.mapping = np.asarray(mapping, dtype=np.uint32)
         self.sprite_offset = sprite_offest
 
-    def _set_dimensions(self, x, y, width, height, follow_scrolling=True):
-        self.shape = (width, height)
-        self.game_area_section = (x, y, width, height)
-        self.game_area_follow_scxy = follow_scrolling
-
     def _sum_number_on_screen(self, x, y, length, blank_tile_identifier, tile_identifier_offset):
         number = 0
         for i, x in enumerate(self.tilemap_background[x:x + length, y]):
             if x != blank_tile_identifier:
                 number += (x+tile_identifier_offset) * (10**(length - 1 - i))
-        return number
-
-    def __repr__(self):
-        adjust = 4
-        # yapf: disable
-
-        sprites = &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()])
-
-        tiles_header = (
-            &#34; &#34;*4 + &#34;&#34;.join([f&#34;{i: &gt;4}&#34; for i in range(self.shape[0])]) + &#34;\n&#34; +
-            &#34;_&#34;*(adjust*self.shape[0]+4)
-        )
-
-        tiles = &#34;\n&#34;.join(
-                [
-                    (f&#34;{i: &lt;3}|&#34; + &#34;&#34;.join([str(tile).rjust(adjust) for tile in line])).strip()
-                    for i, line in enumerate(self.game_area())
-                ]
-            )
-
-        return (
-            &#34;Sprites on screen:\n&#34; +
-            sprites +
-            &#34;\n&#34; +
-            &#34;Tiles on screen:\n&#34; +
-            tiles_header +
-            &#34;\n&#34; +
-            tiles
-        )
-        # yapf: enable</code></pre>
+        return number</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -580,20 +498,9 @@ class PyBoyGameWrapper(PyBoyPlugin):
 <dd>
 <section class="desc"></section>
 </dd>
-<dt id="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one"><code class="name">var <span class="ident">mapping_one_to_one</span></code></dt>
+<dt id="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal"><code class="name">var <span class="ident">mapping_minimal</span></code></dt>
 <dd>
 <section class="desc"><p>Example mapping of 1:1</p></section>
-</dd>
-</dl>
-<h3>Instance variables</h3>
-<dl>
-<dt id="pyboy.plugins.base_plugin.PyBoyGameWrapper.shape"><code class="name">var <span class="ident">shape</span></code></dt>
-<dd>
-<section class="desc"><p>The shape of the game area. This can be modified with <code><a title="pyboy.PyBoy.game_area_dimensions" href="../index.html#pyboy.PyBoy.game_area_dimensions">PyBoy.game_area_dimensions()</a></code>.</p>
-<p>Example:</p>
-<pre><code class="language-python">&gt;&gt;&gt; pyboy.game_wrapper.shape
-(32, 32)
-</code></pre></section>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -775,9 +682,8 @@ instantly.</p>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.use_background" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.use_background">use_background</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area">game_area</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area_mapping" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area_mapping">game_area_mapping</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.shape" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.shape">shape</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.cartridge_title" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.cartridge_title">cartridge_title</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one">mapping_one_to_one</a></code></li>
+<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal" href="#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal">mapping_minimal</a></code></li>
 </ul>
 </li>
 </ul>

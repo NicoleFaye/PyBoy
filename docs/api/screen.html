@@ -148,8 +148,12 @@ class Screen:
         &#34;&#34;&#34;
         if not Image:
             logger.warning(&#34;Cannot generate screen image. Missing dependency \&#34;Pillow\&#34;.&#34;)
+
         else:
-            self._set_image()
+            self.image = Image.frombuffer(
+                self.mb.lcd.renderer.color_format, self.mb.lcd.renderer.buffer_dims[::-1],
+                self.mb.lcd.renderer._screenbuffer_raw
+            )
 
         self.ndarray = np.frombuffer(
             self.mb.lcd.renderer._screenbuffer_raw,
@@ -189,12 +193,6 @@ class Screen:
         numpy.ndarray:
             Screendata in `ndarray` of bytes with shape (144, 160, 4)
         &#34;&#34;&#34;
-
-    def _set_image(self):
-        self.image = Image.frombuffer(
-            self.mb.lcd.renderer.color_format, self.mb.lcd.renderer.buffer_dims[::-1],
-            self.mb.lcd.renderer._screenbuffer_raw
-        )
 
     @property
     def tilemap_position_list(self):
@@ -385,8 +383,12 @@ It's much more efficient to use <code><a title="pyboy.PyBoy.tilemap_background" 
         &#34;&#34;&#34;
         if not Image:
             logger.warning(&#34;Cannot generate screen image. Missing dependency \&#34;Pillow\&#34;.&#34;)
+
         else:
-            self._set_image()
+            self.image = Image.frombuffer(
+                self.mb.lcd.renderer.color_format, self.mb.lcd.renderer.buffer_dims[::-1],
+                self.mb.lcd.renderer._screenbuffer_raw
+            )
 
         self.ndarray = np.frombuffer(
             self.mb.lcd.renderer._screenbuffer_raw,
@@ -426,12 +428,6 @@ It's much more efficient to use <code><a title="pyboy.PyBoy.tilemap_background" 
         numpy.ndarray:
             Screendata in `ndarray` of bytes with shape (144, 160, 4)
         &#34;&#34;&#34;
-
-    def _set_image(self):
-        self.image = Image.frombuffer(
-            self.mb.lcd.renderer.color_format, self.mb.lcd.renderer.buffer_dims[::-1],
-            self.mb.lcd.renderer._screenbuffer_raw
-        )
 
     @property
     def tilemap_position_list(self):

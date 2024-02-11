@@ -54,7 +54,8 @@ class GameWrapperPokemonGen1(PyBoyGameWrapper):
     cartridge_title = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, game_area_section=(0, 0, 20, 18), game_area_follow_scxy=True, **kwargs)
+        self.shape = (20, 18)
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
         self.sprite_offset = 0
 
     def enabled(self):
@@ -107,10 +108,23 @@ class GameWrapperPokemonGen1(PyBoyGameWrapper):
         return game_area
 
     def __repr__(self):
+        adjust = 4
         # yapf: disable
         return (
             f&#34;Pokemon Gen 1:\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*20+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -144,7 +158,8 @@ class GameWrapperPokemonGen1(PyBoyGameWrapper):
     cartridge_title = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, game_area_section=(0, 0, 20, 18), game_area_follow_scxy=True, **kwargs)
+        self.shape = (20, 18)
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
         self.sprite_offset = 0
 
     def enabled(self):
@@ -197,10 +212,23 @@ class GameWrapperPokemonGen1(PyBoyGameWrapper):
         return game_area
 
     def __repr__(self):
+        adjust = 4
         # yapf: disable
         return (
             f&#34;Pokemon Gen 1:\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*20+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -252,9 +280,8 @@ class GameWrapperPokemonGen1(PyBoyGameWrapper):
 <ul class="hlist">
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.game_area">game_area</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.game_over" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.game_over">game_over</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one">mapping_one_to_one</a></code></li>
+<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal">mapping_minimal</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.reset_game" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.reset_game">reset_game</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.shape" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.shape">shape</a></code></li>
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.start_game" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.start_game">start_game</a></code></li>
 </ul>
 </li>
