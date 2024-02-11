@@ -92,6 +92,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
     Minimal mapping for `pyboy.PyBoy.game_area_mapping`
     &#34;&#34;&#34;
     def __init__(self, *args, **kwargs):
+        self.shape = (10, 18)
+        &#34;&#34;&#34;The shape of the game area&#34;&#34;&#34;
         self.score = 0
         &#34;&#34;&#34;The score provided by the game&#34;&#34;&#34;
         self.level = 0
@@ -99,13 +101,13 @@ class GameWrapperTetris(PyBoyGameWrapper):
         self.lines = 0
         &#34;&#34;&#34;The number of cleared lines&#34;&#34;&#34;
 
-        # super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # ROWS, COLS = self.shape
-        # self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (ROWS*COLS*4))
-        # self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(ROWS, COLS))
+        ROWS, COLS = self.shape
+        self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (ROWS*COLS*4))
+        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(ROWS, COLS))
 
-        super().__init__(*args, game_area_section=(2, 0, 10, 18), game_area_follow_scxy=False, **kwargs)
+        super().__init__(*args, game_area_section=(2, 0) + self.shape, game_area_follow_scxy=False, **kwargs)
 
     def _game_area_tiles(self):
         if self._tile_cache_invalid:
@@ -288,7 +290,19 @@ class GameWrapperTetris(PyBoyGameWrapper):
             f&#34;Score: {self.score}\n&#34; +
             f&#34;Level: {self.level}\n&#34; +
             f&#34;Lines: {self.lines}\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*10+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -329,6 +343,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
     Minimal mapping for `pyboy.PyBoy.game_area_mapping`
     &#34;&#34;&#34;
     def __init__(self, *args, **kwargs):
+        self.shape = (10, 18)
+        &#34;&#34;&#34;The shape of the game area&#34;&#34;&#34;
         self.score = 0
         &#34;&#34;&#34;The score provided by the game&#34;&#34;&#34;
         self.level = 0
@@ -336,13 +352,13 @@ class GameWrapperTetris(PyBoyGameWrapper):
         self.lines = 0
         &#34;&#34;&#34;The number of cleared lines&#34;&#34;&#34;
 
-        # super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
-        # ROWS, COLS = self.shape
-        # self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (ROWS*COLS*4))
-        # self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(ROWS, COLS))
+        ROWS, COLS = self.shape
+        self._cached_game_area_tiles_raw = array(&#34;B&#34;, [0xFF] * (ROWS*COLS*4))
+        self._cached_game_area_tiles = memoryview(self._cached_game_area_tiles_raw).cast(&#34;I&#34;, shape=(ROWS, COLS))
 
-        super().__init__(*args, game_area_section=(2, 0, 10, 18), game_area_follow_scxy=False, **kwargs)
+        super().__init__(*args, game_area_section=(2, 0) + self.shape, game_area_follow_scxy=False, **kwargs)
 
     def _game_area_tiles(self):
         if self._tile_cache_invalid:
@@ -525,7 +541,19 @@ class GameWrapperTetris(PyBoyGameWrapper):
             f&#34;Score: {self.score}\n&#34; +
             f&#34;Level: {self.level}\n&#34; +
             f&#34;Lines: {self.lines}\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*10+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -540,13 +568,13 @@ class GameWrapperTetris(PyBoyGameWrapper):
 <dd>
 <section class="desc"><p>Compressed mapping for <code><a title="pyboy.PyBoy.game_area_mapping" href="../index.html#pyboy.PyBoy.game_area_mapping">PyBoy.game_area_mapping()</a></code></p></section>
 </dd>
-<dt id="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.mapping_minimal"><code class="name">var <span class="ident">mapping_minimal</span></code></dt>
-<dd>
-<section class="desc"><p>Minimal mapping for <code><a title="pyboy.PyBoy.game_area_mapping" href="../index.html#pyboy.PyBoy.game_area_mapping">PyBoy.game_area_mapping()</a></code></p></section>
-</dd>
 </dl>
 <h3>Instance variables</h3>
 <dl>
+<dt id="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.shape"><code class="name">var <span class="ident">shape</span></code></dt>
+<dd>
+<section class="desc"><p>The shape of the game area</p></section>
+</dd>
 <dt id="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.score"><code class="name">var <span class="ident">score</span></code></dt>
 <dd>
 <section class="desc"><p>The score provided by the game</p></section>
@@ -854,8 +882,7 @@ any overrides when reloading the ROM. This also applies to
 <ul class="hlist">
 <li><code><b><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper">PyBoyGameWrapper</a></b></code>:
 <ul class="hlist">
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one">mapping_one_to_one</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.shape" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.shape">shape</a></code></li>
+<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal">mapping_minimal</a></code></li>
 </ul>
 </li>
 </ul>
@@ -885,11 +912,11 @@ any overrides when reloading the ROM. This also applies to
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.next_tetromino" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.next_tetromino">next_tetromino</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.set_tetromino" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.set_tetromino">set_tetromino</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.game_over" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.game_over">game_over</a></code></li>
+<li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.shape" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.shape">shape</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.score" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.score">score</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.level" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.level">level</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.lines" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.lines">lines</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.mapping_compressed" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.mapping_compressed">mapping_compressed</a></code></li>
-<li><code><a title="pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.mapping_minimal" href="#pyboy.plugins.game_wrapper_tetris.GameWrapperTetris.mapping_minimal">mapping_minimal</a></code></li>
 </ul>
 </li>
 </ul>

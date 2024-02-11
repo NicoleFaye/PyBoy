@@ -52,6 +52,8 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
     cartridge_title = &#34;KIRBY DREAM LA&#34;
 
     def __init__(self, *args, **kwargs):
+        self.shape = (20, 16)
+        &#34;&#34;&#34;The shape of the game area&#34;&#34;&#34;
         self.score = 0
         &#34;&#34;&#34;The score provided by the game&#34;&#34;&#34;
         self.health = 0
@@ -61,7 +63,7 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         self._game_over = False
         &#34;&#34;&#34;The game over state&#34;&#34;&#34;
 
-        super().__init__(*args, game_area_section=(0, 0, 20, 16), game_area_follow_scxy=True, **kwargs)
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
     def post_tick(self):
         self._tile_cache_invalid = True
@@ -167,13 +169,26 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         return self._game_over
 
     def __repr__(self):
+        adjust = 4
         # yapf: disable
         return (
             f&#34;Kirby Dream Land:\n&#34; +
             f&#34;Score: {self.score}\n&#34; +
             f&#34;Health: {self.health}\n&#34; +
             f&#34;Lives left: {self.lives_left}\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*20+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -207,6 +222,8 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
     cartridge_title = &#34;KIRBY DREAM LA&#34;
 
     def __init__(self, *args, **kwargs):
+        self.shape = (20, 16)
+        &#34;&#34;&#34;The shape of the game area&#34;&#34;&#34;
         self.score = 0
         &#34;&#34;&#34;The score provided by the game&#34;&#34;&#34;
         self.health = 0
@@ -216,7 +233,7 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         self._game_over = False
         &#34;&#34;&#34;The game over state&#34;&#34;&#34;
 
-        super().__init__(*args, game_area_section=(0, 0, 20, 16), game_area_follow_scxy=True, **kwargs)
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
     def post_tick(self):
         self._tile_cache_invalid = True
@@ -322,13 +339,26 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         return self._game_over
 
     def __repr__(self):
+        adjust = 4
         # yapf: disable
         return (
             f&#34;Kirby Dream Land:\n&#34; +
             f&#34;Score: {self.score}\n&#34; +
             f&#34;Health: {self.health}\n&#34; +
             f&#34;Lives left: {self.lives_left}\n&#34; +
-            super().__repr__()
+            &#34;Sprites on screen:\n&#34; +
+            &#34;\n&#34;.join([str(s) for s in self._sprites_on_screen()]) +
+            &#34;\n&#34; +
+            &#34;Tiles on screen:\n&#34; +
+            &#34; &#34;*5 + &#34;&#34;.join([f&#34;{i: &lt;4}&#34; for i in range(10)]) + &#34;\n&#34; +
+            &#34;_&#34;*(adjust*20+4) +
+            &#34;\n&#34; +
+            &#34;\n&#34;.join(
+                [
+                    f&#34;{i: &lt;3}| &#34; + &#34;&#34;.join([str(tile).ljust(adjust) for tile in line])
+                    for i, line in enumerate(self.game_area())
+                ]
+            )
         )
         # yapf: enable</code></pre>
 </details>
@@ -339,6 +369,10 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
 </ul>
 <h3>Instance variables</h3>
 <dl>
+<dt id="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.shape"><code class="name">var <span class="ident">shape</span></code></dt>
+<dd>
+<section class="desc"><p>The shape of the game area</p></section>
+</dd>
 <dt id="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.score"><code class="name">var <span class="ident">score</span></code></dt>
 <dd>
 <section class="desc"><p>The score provided by the game</p></section>
@@ -503,8 +537,7 @@ instantly.</p>
 <li><code><b><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper">PyBoyGameWrapper</a></b></code>:
 <ul class="hlist">
 <li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.game_over" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.game_over">game_over</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_one_to_one">mapping_one_to_one</a></code></li>
-<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.shape" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.shape">shape</a></code></li>
+<li><code><a title="pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal" href="base_plugin.html#pyboy.plugins.base_plugin.PyBoyGameWrapper.mapping_minimal">mapping_minimal</a></code></li>
 </ul>
 </li>
 </ul>
@@ -531,6 +564,7 @@ instantly.</p>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.start_game" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.start_game">start_game</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.reset_game" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.reset_game">reset_game</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.game_area" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.game_area">game_area</a></code></li>
+<li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.shape" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.shape">shape</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.score" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.score">score</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.health" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.health">health</a></code></li>
 <li><code><a title="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.lives_left" href="#pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.lives_left">lives_left</a></code></li>

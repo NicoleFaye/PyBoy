@@ -57,6 +57,12 @@ class ScanMode(Enum):
 class MemoryScanner():
     &#34;&#34;&#34;A class for scanning memory within a given range.&#34;&#34;&#34;
     def __init__(self, pyboy):
+        &#34;&#34;&#34;
+        Initializes the MemoryScanner with a PyBoy instance.
+
+        Args:
+            pyboy (PyBoy): The PyBoy emulator instance.
+        &#34;&#34;&#34;
         self.pyboy = pyboy
         self._memory_cache = {}
         self._memory_cache_byte_width = 1
@@ -336,7 +342,13 @@ class MemoryScanner():
 <span>(</span><span>pyboy)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>A class for scanning memory within a given range.</p></section>
+<section class="desc"><p>A class for scanning memory within a given range.</p>
+<p>Initializes the MemoryScanner with a PyBoy instance.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pyboy</code></strong> :&ensp;<code>PyBoy</code></dt>
+<dd>The PyBoy emulator instance.</dd>
+</dl></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -344,6 +356,12 @@ class MemoryScanner():
 <pre><code class="python">class MemoryScanner():
     &#34;&#34;&#34;A class for scanning memory within a given range.&#34;&#34;&#34;
     def __init__(self, pyboy):
+        &#34;&#34;&#34;
+        Initializes the MemoryScanner with a PyBoy instance.
+
+        Args:
+            pyboy (PyBoy): The PyBoy emulator instance.
+        &#34;&#34;&#34;
         self.pyboy = pyboy
         self._memory_cache = {}
         self._memory_cache_byte_width = 1
