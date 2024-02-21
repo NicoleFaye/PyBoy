@@ -201,24 +201,6 @@ class Maps(Enum):
     CINNABAR_ISLAND = 16
     INDIGO_PLATEAU = 17
 
-class SpecialMode(Enum):
-    CATCH = 0
-    EVOLVE = 1
-    STAGE_CHANGE = 2
-
-
-class BallType(Enum):
-    POKEBALL = 0
-    GREATBALL = 2
-    ULTRABALL = 3
-    MASTERBALL = 4
-
-
-class BallSize(Enum):
-    DEFAULT = 0
-    MINI = 1
-    SUPERMINI = 2
-
 
 RedStages = [Stage.RED_TOP, Stage.RED_BOTTOM]
 BlueStages = [Stage.BLUE_TOP, Stage.BLUE_BOTTOM]
@@ -242,10 +224,15 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The shape of the game area"""
         self.score = 0
         """The score provided by the game"""
+        self._previous_score = 0
+        self._score_overflow_count = 0
+        self.actual_score = 0
+        """The score provided by the game, including overflow"""
         self.balls_left = 0
         """The lives remaining provided by the game"""
         self.game_over = False
         """The game over state"""
+        self.fitness = 0
         self.saver_active = False
         """The ball saver state"""
         self.ball_type = BallType.POKEBALL.value
@@ -262,10 +249,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The pokedex state"""
         self._unlimited_saver = False
         """The unlimited saver state"""
-        self.ball_x =0
-        self.ball_y =0
-        self.ball_x_velocity =0
-        self.ball_y_velocity =0
         
         ##########################
         # Fitness Related Values #
@@ -276,6 +259,11 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         ######################
         self.evolution_failure_count = 0
         self.evolution_success_count = 0
+        
+        self._inEvolutionMode = 0
+        self._prevEvolutionState = 0
+        self._evolutionState = 0
+        self._evolutionCounted = False
         
         ########################
         # Bonus stage tracking #
@@ -296,46 +284,39 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         # Pikachu Saver tracking #
         ##########################
         self.pikachu_saver_charge = 0 # range of 0-15
-        self.pikachu_saver_increments = 0
-        self.pikachu_saver_used = 0
         
         ################
         # Map tracking #
         ################
         self.current_map = 0
-        self.map_change_attempts = 0
-        self.map_change_successes = 0
 
         ###########################
         # Pokemon Caught Tracking #
         ###########################
+        self._previous_pokemon_caught_in_session = 0
+        self._pokemon_caught_overflow_count = 0
+        self.actual_pokemon_caught_in_session = 0
         self.pokemon_caught_in_session = 0
-        self.pokemon_seen_in_session = 0
+        """The number of pokemon caught in the current session, including overflow"""
 
-        #########################
-        # Ball upgrade Tracking #
-        #########################
-        self.great_ball_upgrades = 0
-        self.ultra_ball_upgrades = 0
-        self.master_ball_upgrades = 0
+        #not sure about game area wrap around yet
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_wrap_around=False, **kwargs)
 
-        #######################
-        # Extra Ball Tracking #
-        #######################
-        self.extra_balls_added = 0 # Does not include extra balls rewarded via roulette
 
-        #################
-        # Slot Tracking #
-        #################
-        self.roulette_slots_opened= 0
-        self.roulette_slots_entered= 0
+    #This may increment erradiacally, needs testing
+    def _update_evolution_counts(self):
+        self._inEvolutionMode =  self.pyboy.memory[ADDR_SPECIAL_MODE] == SpecialMode.EVOLVE.value and self.pyboy.memory[ADDR_SPECIAL_MODE_ACTIVE] == 1 
+        self._prevEvolutionState = self._evolutionState
+        self._evolutionState = self.pyboy.memory[ADDR_SPECIAL_MODE_STATE]
         
-
-
-        self._add_hooks()
-
-        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
-
+        if self._inEvolutionMode and self._prevEvolutionState == 0  and self._evolutionState == 2 and not self._evolutionCounted:
+            self.evolution_failure_count += 1
+            self._evolutionCounted = True
+        elif self._inEvolutionMode and self._prevEvolutionState == 0  and self._evolutionState == 1 and not self._evolutionCounted:
+            self.evolution_success_count += 1
+            self._evolutionCounted = True
+        elif not self._inEvolutionMode:
+            self._evolutionCounted = False
 
     def _update_pokedex(self):
         for pokemon in Pokemon:
@@ -353,7 +334,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self._set_timer_div(timer_div)
 
     def has_pokemon(self, pokemon):
-        #TODO TEST THIS
         """
         Check if the player has caught the given pokemon
 
@@ -361,6 +341,21 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             pokemon (Pokemon): The pokemon to check for
         """
         return self.pokedex[pokemon.value] == 2
+
+    def has_completed_current_map(self):
+        """
+        Check if the player has completed the current map
+        """
+        return self.pyboy.memory[ADDR_CURRENT_MAP]
+
+    def enable_score_overflow(self):
+        """
+        Override rom memory to enable score overflow
+        """
+        for i in range(NO_OP_BYTE_WIDTH_SCORE_OVERFLOW_OVERRIDE):
+            self.pyboy.override_memory_value(
+                ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE, ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE, 0x00
+            )
 
     def set_unlimited_saver(self, unlimited_saver=True):
         self._unlimited_saver = unlimited_saver
@@ -378,10 +373,12 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             return
         for i in range(NO_OP_BYTE_WIDTH_STAGE_OVERRIDE):
             # equivalent to no op
-            self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE + i] = 0x00
+            self.pyboy.override_memory_value(ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE + i, 0x00)
         # equivalent to ld a, stage.value
-        self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE] = 0b00111110
-        self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE + 1] = stage.value
+        self.pyboy.override_memory_value(ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE, 0b00111110)
+        self.pyboy.override_memory_value(
+            ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE + 1, stage.value
+        )
 
     def _init_bonus_stage(self, stage):
         # set backup stage if it is a bonus stage
@@ -398,6 +395,16 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE] = 0b100
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE_HELPER] = 0b100
 
+    def _clear_message_buffer(self):
+        """
+        Override memory to clear the message buffer to clean up the score display
+        """
+        for i in range(MESSAGE_BUFFER_BYTE_WIDTH):
+            self.pyboy.memory[ADDR_MESSAGE_BUFFER + i] = 129
+
+    def _calculate_fitness(self):
+        #TODO completly redo fitness function
+        self.fitness = self.actual_score * self.get_unique_pokemon_caught()
 
     def start_catch_mode(self, pokemon=Pokemon.BULBASAUR, unlimited_time=False):
         # All values are based on PRET disassembly
@@ -419,27 +426,9 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_TIMER_ACTIVE] = 1
             self.pyboy.memory[ADDR_D580] = 1
 
-    #replaces pause button with evolution start
     def enable_evolve_hack(self, unlimited_time=False):
-        bank_addr_evo = rom_address_to_bank_and_offset(ROM_ADDR_START_EVOLUTION_METHOD)
-
-        lower_8bits = bank_addr_evo[1] & 0xFF
-        upper_8bits = (bank_addr_evo[1]>> 8) & 0xFF
-
-        bank_addr_pause=rom_address_to_bank_and_offset(ROM_ADDR_PAUSE_METHOD_CALL) 
-
-        self.pyboy.memory[rom_address_to_bank_and_offset(ROM_ADDR_PAUSE_BANK)] = bank_addr_evo[0]
-        self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] = lower_8bits
-        self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]+1] = upper_8bits
-        if unlimited_time:
-            def disable_timer(context):
-                context.memory[ADDR_TIMER_ACTIVE] = 0
-            bank=4
-            offset=0x4d64
-            try:
-                self.pyboy.hook_register(bank,offset,disable_timer,self.pyboy)
-            except:
-                pass #hook already exists
+        #TODO
+        pass
 
     def current_map_completed(self):
         """
@@ -519,28 +508,75 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
         self.current_map = self.pyboy.memory[ADDR_CURRENT_MAP]
 
+        #Score tracking logic
+        self._previous_score = self.score
         self.score = bcd_to_dec(
             int.from_bytes(self.pyboy.memory[ADDR_SCORE:ADDR_SCORE + SCORE_BYTE_WIDTH], "little"),
             byte_width=SCORE_BYTE_WIDTH
         ) * 10
-        
+        old_overflow_count = self._score_overflow_count
+        if self.score < self._previous_score:
+            self._score_overflow_count += 1
+        self.actual_score = self.score + self._score_overflow_count * (MAX_SCORE+10)
+        #if there is an overflow, clear the message buffer to ensure correct current score is displayed
+        if old_overflow_count != self._score_overflow_count:
+            self._clear_message_buffer()
         self.multiplier = self.pyboy.memory[ADDR_MULTIPLIER]
 
+        #Stage tracking logic
+        if self.current_stage != self.pyboy.memory[ADDR_CURRENT_STAGE]:
+            self._previous_stage = self.current_stage
+            self.current_stage = self.pyboy.memory[ADDR_CURRENT_STAGE]
+
+        #bonus stage tracking logic
+        if self.current_stage in AllBonusStageValues and not self._bonus_stage_seen:
+            self._bonus_stage_seen = True
+            self.bonus_stages_visited += 1
+        elif self.current_stage not in AllBonusStageValues:
+            self._bonus_stage_seen = False
+
+        #needs testing
+        #bonus stage completed tracking logic
+        if self._previous_stage in AllBonusStageValues and self.current_stage not in AllBonusStageValues:
+            if self.pyboy.memory[ADDR_BONUS_STAGE_WON] == 1:
+                self.bonus_stages_completed += 1
+
+                # normally i wouldnt edit game vars in tracking, but setting this to zero is an easy way for me to track it
+                # and it will be initialized to 0 at the start of the next bonus stage without being used outside of the bonus stage
+                self.pyboy.memory[ADDR_BONUS_STAGE_WON] = 0
+
+        #mostly for debugging TODO track incrementing of this var
         self.ball_size = self.pyboy.memory[ADDR_BALL_SIZE]
 
-        self.ball_x = self.pyboy.memory[ADDR_BALL_X]
-        self.ball_y = self.pyboy.memory[ADDR_BALL_Y]
-        self.ball_x_velocity = self.pyboy.memory[ADDR_BALL_X_VELOCITY]
-        self.ball_y_velocity = self.pyboy.memory[ADDR_BALL_Y_VELOCITY]
+        #Evolution tracking logic
+        self._update_evolution_counts()
 
+        #Ball saver tracking logic
         self.pikachu_saver_charge = self.pyboy.memory[ADDR_PIKACHU_SAVER_CHARGE]
         self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
+
+        #number of pokemon caught in session tracking logic
+        self._previous_pokemon_caught_in_session = self.pokemon_caught_in_session
+        self.pokemon_caught_in_session = self.pyboy.memory[ADDR_POKEMON_CAUGHT_IN_SESSION]
+        if self.pokemon_caught_in_session < self._previous_pokemon_caught_in_session:
+            self._pokemon_caught_overflow_count += 1
+        self.actual_pokemon_caught_in_session = self.pokemon_caught_in_session + self._pokemon_caught_overflow_count * 256
 
         if self._unlimited_saver:
             self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT] = 30
 
         self._update_pokedex()
 
+        self._calculate_fitness()
+
+    def sum_number_on_screen(self, x, y, length, blank_tile_identifier, tile_identifier_offset):
+        #TODO remove after done testing
+        number = 0
+        newx = x
+        for i, x in enumerate(self.pyboy.botsupport_manager().tilemap_window()[newx:newx + length, y]):
+            if x != blank_tile_identifier:
+                number += (x+tile_identifier_offset) * (10**(length - 1 - i))
+        return number
 
     def __repr__(self):
         adjust = 4
@@ -548,138 +584,17 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         return (
             "PokemonPinball:\n" +
             "Score: " + str(self.score) + "\n" +
+            "Actual score: " + str(self.actual_score) + "\n" +
             "Multiplier: " + str(self.multiplier) + "\n" +
             "Balls left: " + str(self.balls_left) + "\n" +
             "Ball type: " + str(BallType(self.ball_type).name) + "\n" +
-            "Ball X: " + str(self.ball_x) + "\n" +
-            "Ball Y: " + str(self.ball_y) + "\n" +
-            "Ball X Velocity: " + str(self.ball_x_velocity) + "\n" +
-            "Ball Y Velocity: " + str(self.ball_y_velocity) + "\n" +
+            "Ball size: " + str(BallSize(self.ball_size).name) + "\n" +
             "Current stage: " + str(Stage(self.current_stage).name) + "\n" +
             "Game over: " + str(self.game_over) + "\n" +
             "Ball saver seconds left: " + str(self.ball_saver_seconds_left) + "\n" +
-            "Pokemon caught in session: " + str(self.pokemon_caught_in_session) + "\n"
+            "Pokemon caught in session: " + str(self.actual_pokemon_caught_in_session) + "\n"
         )
         # yapf: enable
-    
-    def _add_hooks(self):
-        def completed_evolution(context):
-            context.evolution_success_count += 1
-        self.pyboy.hook_register(CompleteEvolutionMode_RedField[0], CompleteEvolutionMode_RedField[1], completed_evolution, self)
-        self.pyboy.hook_register(CompleteEvolutionMode_BlueField[0], CompleteEvolutionMode_BlueField[1], completed_evolution, self)
-
-        def failed_evolution(context):
-            context.evolution_failure_count += 1
-        self.pyboy.hook_register(FailEvolutionMode_RedField[0], FailEvolutionMode_RedField[1], failed_evolution, self)
-        self.pyboy.hook_register(FailEvolutionMode_BlueField[0], FailEvolutionMode_BlueField[1], failed_evolution, self)
-
-        def pokemon_caught(context):
-            context.pokemon_caught_in_session += 1
-        self.pyboy.hook_register(AddCaughtPokemonToParty[0], AddCaughtPokemonToParty[1], pokemon_caught, self)
-
-        def pokemon_seen(context):
-            context.pokemon_seen_in_session += 1
-        self.pyboy.hook_register(SetPokemonSeenFlag[0], SetPokemonSeenFlag[1], pokemon_seen, self)
-
-        def meowth_visited(context):
-            context.meowth_stages_visited += 1
-        self.pyboy.hook_register(InitMeowthBonusStage[0], InitMeowthBonusStage[1], meowth_visited, self)
-
-        def diglett_visited(context):
-            context.diglett_stages_visited += 1
-        self.pyboy.hook_register(InitDiglettBonusStage[0], InitDiglettBonusStage[1], diglett_visited, self)
-
-        def gengar_visited(context):
-            context.gengar_stages_visited += 1
-        self.pyboy.hook_register(InitGengarBonusStage[0], InitGengarBonusStage[1], gengar_visited, self)
-
-        def seel_visited(context):
-            context.seel_stages_visited += 1
-        self.pyboy.hook_register(InitSeelBonusStage[0], InitSeelBonusStage[1], seel_visited, self)
-
-        def mewtwo_visited(context):
-            context.mewtwo_stages_visited += 1
-        self.pyboy.hook_register(InitMewtwoBonusStage[0], InitMewtwoBonusStage[1], mewtwo_visited, self)
-
-        def meowth_completed(context):
-            context.meowth_stages_completed += 1
-        self.pyboy.hook_register(MeowthStageComplete[0], MeowthStageComplete[1], meowth_completed, self)
-
-        def diglett_completed(context):
-            context.diglett_stages_completed += 1
-        self.pyboy.hook_register(DiglettStageComplete[0], DiglettStageComplete[1], diglett_completed, self)
-
-        def gengar_completed(context):
-            context.gengar_stages_completed += 1
-        self.pyboy.hook_register(GengarStageComplete[0], GengarStageComplete[1], gengar_completed, self)
-
-        def seel_completed(context):
-            context.seel_stages_completed += 1
-        self.pyboy.hook_register(SeelStageComplete[0], SeelStageComplete[1], seel_completed, self)
-
-        def mewtwo_completed(context):
-            context.mewtwo_stages_completed += 1
-        self.pyboy.hook_register(MewtwoStageComplete[0], MewtwoStageComplete[1], mewtwo_completed, self)
-
-        def map_change_attempt(context):
-            context.map_change_attempts += 1
-        self.pyboy.hook_register(MapChangeAttempt[0], MapChangeAttempt[1], map_change_attempt, self)
-
-        def map_change_success(context):
-            context.map_change_successes += 1
-        self.pyboy.hook_register(MapChangeSuccess[0], MapChangeSuccess[1], map_change_success, self)
-
-        def pika_saver_increment(context):
-            context.pikachu_saver_increments += 1
-        self.pyboy.hook_register(PikaSaverIncrement_BlueField[0], PikaSaverIncrement_BlueField[1], pika_saver_increment, self)
-        self.pyboy.hook_register(PikaSaverIncrement_RedField[0], PikaSaverIncrement_RedField[1], pika_saver_increment, self)
-
-        def pika_saver_used(context):
-            context.pikachu_saver_used += 1
-        self.pyboy.hook_register(PikaSaverUsed_BlueField[0], PikaSaverUsed_BlueField[1], pika_saver_used, self)
-        self.pyboy.hook_register(PikaSaverUsed_RedField[0], PikaSaverUsed_RedField[1], pika_saver_used, self)
-
-        def ball_upgrade_trigger(context):
-            if context.ball_type == BallType.POKEBALL.value:
-                context.great_ball_upgrades += 1
-            elif context.ball_type == BallType.GREATBALL.value:
-                context.ultra_ball_upgrades += 1
-            elif context.ball_type == BallType.ULTRABALL.value:
-                context.master_ball_upgrades += 1
-        self.pyboy.hook_register(BallUpgradeTrigger_BlueField[0], BallUpgradeTrigger_BlueField[1], ball_upgrade_trigger, self)
-        self.pyboy.hook_register(BallUpgradeTrigger_RedField[0], BallUpgradeTrigger_RedField[1], ball_upgrade_trigger, self)
-
-        def extra_ball_added(context):
-            context.extra_balls_added += 1
-        self.pyboy.hook_register(AddExtraBall[0], AddExtraBall[1], extra_ball_added, self)
-        #This prevents slot reward extra ball from being counted as it is mostly RNG based and not a good fitness metric
-        def slot_reward_extra_ball(context):
-            context.extra_balls_added -= 1
-        self.pyboy.hook_register(SlotRewardExtraBall[0], SlotRewardExtraBall[1], slot_reward_extra_ball, self)
-
-        def opened_slot_by_getting_4_cave_lights(context):
-            context.roulette_slots_opened += 1
-        self.pyboy.hook_register(OpenedSlotByGetting4CaveLights_Blue[0], OpenedSlotByGetting4CaveLights_Blue[1], opened_slot_by_getting_4_cave_lights, self)
-        self.pyboy.hook_register(OpenedSlotByGetting4CaveLights_Red[0], OpenedSlotByGetting4CaveLights_Red[1], opened_slot_by_getting_4_cave_lights, self)
-
-        def slot_reward_roulette(context):
-            context.roulette_slots_entered += 1
-        self.pyboy.hook_register(SlotRewardRoulette[0], SlotRewardRoulette[1], slot_reward_roulette, self)
-
-
-def rom_address_to_bank_and_offset(address):
-    """
-    Convert a ROM address to a bank and offset
-
-    Args:
-        address (int): The ROM address
-    Returns:
-        tuple: The bank and offset
-    """
-    if address < 0x4000:
-        return 0, address
-    else:
-        return address // 0x4000, address % 0x4000 + 0x4000
 
 #value starts at 1, increments by 1 for each new ball launch and compares to ADDR_NUM_BALL_LIVES
 ADDR_BALLS_LEFT = 0xD49D
@@ -688,11 +603,6 @@ ADDR_NUM_BALL_LIVES = 0xD49E
 ADDR_BALL_TYPE = 0xD47E
 ADDR_BALL_SIZE = 0xD4C8
 ADDR_EXTRA_BALLS = 0xd49b
-
-ADDR_BALL_X = 0xd4b3
-ADDR_BALL_Y = 0xd4b5
-ADDR_BALL_X_VELOCITY = 0xd4bb
-ADDR_BALL_Y_VELOCITY = 0xd4bd
 
 ADDR_BALL_SAVER_SECONDS_LEFT = 0xD4A4
 
@@ -703,10 +613,6 @@ TILE_ILLUMINATION_BYTE_WIDTH = 48
 
 ADDR_MESSAGE_BUFFER = 0xc600
 MESSAGE_BUFFER_BYTE_WIDTH = 100
-
-ADDR_WHICH_DIGLETT = 0xd4ed
-ADDR_RIGHT_MAP_MOVE_COUNTER = 0xd4f2
-ADDR_LEFT_MAP_MOVE_COUNTER = 0xd4f0
 
 ADDR_TIMER_SECONDS = 0xd57a
 ADDR_TIMER_MINUTES = 0xd57b
@@ -719,6 +625,10 @@ ADDR_D580 = 0xd580
 ADDR_CURRENT_MAP = 0xd54a
 
 ADDR_POKEDEX = 0xd962
+
+#this value caps at 255, and will purposefully overflow to 0 after 255 and grant the player bonus points
+#to properly track this value we need to keep track of the overflow
+ADDR_POKEMON_CAUGHT_IN_SESSION = 0xD460
 
 ADDR_STAGE_COLLISION_STATE = 0xD4AF
 ADDR_STAGE_COLLISION_STATE_HELPER = 0xD7AD
@@ -748,6 +658,11 @@ ADDR_TO_NO_OP_STAGE_OVERRIDE = 0x1774 + 37
 ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE = 3
 NO_OP_BYTE_WIDTH_STAGE_OVERRIDE = 11
 
+#performing this no op will enable the score to overflow to allow for larger scores
+ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE = 0x622
+ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE = 2
+NO_OP_BYTE_WIDTH_SCORE_OVERFLOW_OVERRIDE = 3
+
 ADDR_SPECIAL_MODE = 0xD550
 ADDR_SPECIAL_MODE_ACTIVE = 0xD54B
 ADDR_SPECIAL_MODE_STATE = 0xD54D # 0 = handleEvolutionMode, 1 = CompleteEvolutionMode, 2 = FailEvolutionMode 
@@ -756,41 +671,7 @@ ADDR_SPECIAL_MODE_STATE = 0xD54D # 0 = handleEvolutionMode, 1 = CompleteEvolutio
 ADDR_POKEMON_TO_CATCH = 0xD579
 ADDR_RARE_POKEMON_FLAG = 0xd55b
 
-#Evolution hack related addresses
-ROM_ADDR_START_EVOLUTION_METHOD = 0x10ab3
-ROM_ADDR_PAUSE_BANK = 0xd954
-ROM_ADDR_PAUSE_METHOD_CALL = 0xd956
-ROM_ADDR_PAUSE_METHOD = 0x86d7
 
-CompleteEvolutionMode_BlueField= (8,0x4d30)
-CompleteEvolutionMode_RedField=(8,0x470b)
-FailEvolutionMode_BlueField=(8,0x4d7c)
-FailEvolutionMode_RedField=(8,0x4757)
-AddCaughtPokemonToParty=(4,0x473d)
-SetPokemonSeenFlag=(4,0x4753)
-InitDiglettBonusStage=(6,0x59f2)
-InitMeowthBonusStage=(9,0x4000)
-InitGengarBonusStage=(6,0x4099)
-InitSeelBonusStage=(9,0x5a7c)
-InitMewtwoBonusStage=(6,0x524f)
-DiglettStageComplete=(6,0x6bf2)
-GengarStageComplete=(6,0x4a14)
-MeowthStageComplete=(9,0x444b)
-SeelStageComplete=(9,0x5c5a)
-MewtwoStageComplete=(6,0x565e)
-MapChangeAttempt=(0xc,0x41ec)
-MapChangeSuccess=(0xc,0x55d5)
-PikaSaverIncrement_BlueField=(0x7,0x4aff)
-PikaSaverIncrement_RedField=(0x5,0x4e8a)
-PikaSaverUsed_BlueField=(0x7,0x50c9)
-PikaSaverUsed_RedField=(0x5,0x6634)
-BallUpgradeTrigger_BlueField=(0x7,0x63de)
-BallUpgradeTrigger_RedField=(0x5,0x53c0)
-AddExtraBall=(0xc,0x4164)
-SlotRewardExtraBall=(0x3,0x6fa7)
-OpenedSlotByGetting4CaveLights_Blue=(0x7,0x667e)
-OpenedSlotByGetting4CaveLights_Red=(0x5,0x5284)
-SlotRewardRoulette=(0x3,0x6d8e)
 
 RedStageMapWildMons = {
     Maps.PALLET_TOWN: {
@@ -1242,4 +1123,23 @@ BlueStageMapWildMonsRare = {
         Pokemon.MEW: 0.0625
     },
 }
+
+
+class SpecialMode(Enum):
+    CATCH = 0
+    EVOLVE = 1
+    STAGE_CHANGE = 2
+
+
+class BallType(Enum):
+    POKEBALL = 0
+    GREATBALL = 2
+    ULTRABALL = 3
+    MASTERBALL = 4
+
+
+class BallSize(Enum):
+    DEFAULT = 0
+    MINI = 1
+    SUPERMINI = 2
 
