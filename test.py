@@ -10,15 +10,18 @@ pinball.start_game(stage=Stage.BLUE_BOTTOM)
 pyboy.set_emulation_speed(1)
 
 pyboy.load_state(open("test.state", "rb"))
+pinball.enable_evolve_hack()
+while True:
+    pyboy.tick()
 
 addy=0x5946 #0xd946 call PlaySoundEffect
 addy+=3 # translates to 0xcd 0xaf 0x4b
 bank = 0x3
-for i in range(50):
-    print(hex(pyboy.memory[bank,addy-25+i]))
+for i in range(70):
+    print(hex(addy+i)," ",hex(pyboy.memory[bank,addy+i]))
 
 
-
+exit()
 input()
 while True:
     pyboy.tick()
