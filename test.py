@@ -4,9 +4,8 @@ from pyboy.utils import WindowEvent, bcd_to_dec
 
 pyboy = PyBoy("pinball.gbc", game_wrapper=True)
 pyboy.set_emulation_speed(0)
-print(pyboy.cartridge_title())
-scanner = MemoryScanner(pyboy)
-pinball = pyboy.game_wrapper()
+print(pyboy.cartridge_title)
+pinball = pyboy.game_wrapper
 pinball.start_game(stage=Stage.BLUE_BOTTOM)
 pyboy.set_emulation_speed(1)
 

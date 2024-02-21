@@ -299,8 +299,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pokemon_caught_in_session = 0
         """The number of pokemon caught in the current session, including overflow"""
 
-        #not sure about game area wrap around yet
-        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_wrap_around=False, **kwargs)
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
 
     #This may increment erradiacally, needs testing
