@@ -352,9 +352,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         Override rom memory to enable score overflow
         """
         for i in range(NO_OP_BYTE_WIDTH_SCORE_OVERFLOW_OVERRIDE):
-            self.pyboy.override_memory_value(
-                ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE, ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE, 0x00
-            )
+            self.pyboy.memory[ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE,ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE + i] = 0x00
 
     def set_unlimited_saver(self, unlimited_saver=True):
         self._unlimited_saver = unlimited_saver
@@ -372,12 +370,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             return
         for i in range(NO_OP_BYTE_WIDTH_STAGE_OVERRIDE):
             # equivalent to no op
-            self.pyboy.override_memory_value(ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE + i, 0x00)
+            self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE + i] = 0x00
         # equivalent to ld a, stage.value
-        self.pyboy.override_memory_value(ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE, 0b00111110)
-        self.pyboy.override_memory_value(
-            ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE, ADDR_TO_NO_OP_STAGE_OVERRIDE + 1, stage.value
-        )
+        self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE] = 0b00111110
+        self.pyboy.memory[ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE,ADDR_TO_NO_OP_STAGE_OVERRIDE + 1] = stage.value
 
     def _init_bonus_stage(self, stage):
         # set backup stage if it is a bonus stage
@@ -426,8 +422,19 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_D580] = 1
 
     def enable_evolve_hack(self, unlimited_time=False):
-        #TODO
-        pass
+        bank_addr_evo = rom_address_to_bank_and_address(ROM_ADDR_START_EVOLUTION_METHOD)
+        self.pyboy.memory[rom_address_to_bank_and_address(ROM_ADDR_PAUSE_BANK)] = bank_addr_evo[0]
+
+        lower_8bits = bank_addr_evo[1] & 0xFF
+        upper_8bits = (bank_addr_evo[1]>> 8) & 0xFF
+
+        bank_addr_pause=rom_address_to_bank_and_address(ROM_ADDR_PAUSE_METHOD_CALL) 
+        print("lower:",lower_8bits)
+        print(self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] )
+        self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] = lower_8bits
+        print(self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] )
+        self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]+1] = upper_8bits
+        print("test")
 
     def current_map_completed(self):
         """
@@ -595,6 +602,19 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         )
         # yapf: enable
 
+
+def rom_address_to_bank_and_address(address):
+    """
+    Convert a ROM address to a bank and address
+
+    Args:
+        address (int): The ROM address
+
+    Returns:
+        tuple: The bank and address
+    """
+    return address // 0x4000, address % 0x4000 + 0x4000
+
 #value starts at 1, increments by 1 for each new ball launch and compares to ADDR_NUM_BALL_LIVES
 ADDR_BALLS_LEFT = 0xD49D
 #value gets initialized to 3 by red and blue stage initialization code
@@ -669,6 +689,12 @@ ADDR_SPECIAL_MODE_STATE = 0xD54D # 0 = handleEvolutionMode, 1 = CompleteEvolutio
 
 ADDR_POKEMON_TO_CATCH = 0xD579
 ADDR_RARE_POKEMON_FLAG = 0xd55b
+
+#Evolution hack related addresses
+ROM_ADDR_START_EVOLUTION_METHOD = 0x10ab3
+ROM_ADDR_PAUSE_BANK = 0xd954
+ROM_ADDR_PAUSE_METHOD_CALL = 0xd956
+ROM_ADDR_PAUSE_METHOD = 0x86d7
 
 
 
