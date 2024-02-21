@@ -1,5 +1,4 @@
 from pyboy import PyBoy
-from pyboy.api.memoryscanner import DynamicComparisonType, MemoryScanner, ScanMode, StandardComparisonType
 from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage
 from pyboy.utils import WindowEvent, bcd_to_dec
 
