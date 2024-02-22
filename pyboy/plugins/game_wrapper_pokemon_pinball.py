@@ -228,7 +228,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The lives remaining provided by the game"""
         self.game_over = False
         """The game over state"""
-        self.fitness = 0
         self.saver_active = False
         """The ball saver state"""
         self.ball_type = BallType.POKEBALL.value
@@ -355,9 +354,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_NUM_BALL_LIVES] = 3
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE] = 0b100
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE_HELPER] = 0b100
-
-    def _calculate_fitness(self):
-        pass
 
 
     def start_catch_mode(self, pokemon=Pokemon.BULBASAUR, unlimited_time=False):
@@ -521,7 +517,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
         self._update_pokedex()
 
-        self._calculate_fitness()
 
     def sum_number_on_screen(self, x, y, length, blank_tile_identifier, tile_identifier_offset):
         #TODO remove after done testing
@@ -675,6 +670,7 @@ ADDR_POKEDEX = 0xd962
 
 #this value caps at 255, and will purposefully overflow to 0 after 255 and grant the player bonus points
 #to properly track this value we need to keep track of the overflow
+# PROBABLY NOT USED ANYMORE
 ADDR_POKEMON_CAUGHT_IN_SESSION = 0xD460
 
 ADDR_STAGE_COLLISION_STATE = 0xD4AF
