@@ -508,19 +508,9 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         #mostly for debugging TODO track incrementing of this var
         self.ball_size = self.pyboy.memory[ADDR_BALL_SIZE]
 
-        #Evolution tracking logic
-        self._update_evolution_counts()
-
         #Ball saver tracking logic
         self.pikachu_saver_charge = self.pyboy.memory[ADDR_PIKACHU_SAVER_CHARGE]
         self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
-
-        #number of pokemon caught in session tracking logic
-        self._previous_pokemon_caught_in_session = self.pokemon_caught_in_session
-        self.pokemon_caught_in_session = self.pyboy.memory[ADDR_POKEMON_CAUGHT_IN_SESSION]
-        if self.pokemon_caught_in_session < self._previous_pokemon_caught_in_session:
-            self._pokemon_caught_overflow_count += 1
-        self.actual_pokemon_caught_in_session = self.pokemon_caught_in_session + self._pokemon_caught_overflow_count * 256
 
         if self._unlimited_saver:
             self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT] = 30
@@ -574,6 +564,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         def pokemon_seen(context):
             context.pokemon_seen_in_session += 1
         self.pyboy.hook_register(SetPokemonSeenFlag[0], SetPokemonSeenFlag[1], pokemon_seen, self)
+
+        def meowth_visited(context):
+            context.meowth_stages_visited += 1
+        self.pyboy.hook_register(InitMeowthBonusStage[0], InitMeowthBonusStage[1], meowth_visited, self)
 
 def rom_address_to_bank_and_offset(address):
     """
@@ -671,6 +665,11 @@ FailEvolutionMode_BlueField=(8,0x4d7c)
 FailEvolutionMode_RedField=(8,0x4757)
 AddCaughtPokemonToParty=(4,0x473d)
 SetPokemonSeenFlag=(4,0x4753)
+InitDiglettBonusStage=(6,0x59f2)
+InitMeowthBonusStage=(9,0x4000)
+InitGengarBonusStage=(6,0x4099)
+InitSeelBonusStage=(9,0x5a7c)
+InitMewtwoBonusStage=(6,0x524f)
 
 
 RedStageMapWildMons = {
