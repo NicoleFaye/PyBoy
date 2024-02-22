@@ -280,6 +280,8 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         # Map tracking #
         ################
         self.current_map = 0
+        self.map_change_attempts = 0
+        self.map_change_successes = 0
 
         ###########################
         # Pokemon Caught Tracking #
@@ -605,6 +607,14 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             context.mewtwo_stages_completed += 1
         self.pyboy.hook_register(MewtwoStageComplete[0], MewtwoStageComplete[1], mewtwo_completed, self)
 
+        def map_change_attempt(context):
+            context.map_change_attempts += 1
+        self.pyboy.hook_register(MapChangeAttempt[0], MapChangeAttempt[1], map_change_attempt, self)
+
+        def map_change_success(context):
+            context.map_change_successes += 1
+        self.pyboy.hook_register(MapChangeSuccess[0], MapChangeSuccess[1], map_change_success, self)
+
 
 
 def rom_address_to_bank_and_offset(address):
@@ -713,6 +723,8 @@ GengarStageComplete=(6,0x4a14)
 MeowthStageComplete=(9,0x444b)
 SeelStageComplete=(9,0x5c5a)
 MewtwoStageComplete=(6,0x565e)
+MapChangeAttempt=(0xc,0x41ec)
+MapChangeSuccess=(0xc,0x55d5)
 
 
 RedStageMapWildMons = {
