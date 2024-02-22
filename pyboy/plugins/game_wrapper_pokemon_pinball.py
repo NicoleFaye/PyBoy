@@ -569,6 +569,44 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             context.meowth_stages_visited += 1
         self.pyboy.hook_register(InitMeowthBonusStage[0], InitMeowthBonusStage[1], meowth_visited, self)
 
+        def diglett_visited(context):
+            context.diglett_stages_visited += 1
+        self.pyboy.hook_register(InitDiglettBonusStage[0], InitDiglettBonusStage[1], diglett_visited, self)
+
+        def gengar_visited(context):
+            context.gengar_stages_visited += 1
+        self.pyboy.hook_register(InitGengarBonusStage[0], InitGengarBonusStage[1], gengar_visited, self)
+
+        def seel_visited(context):
+            context.seel_stages_visited += 1
+        self.pyboy.hook_register(InitSeelBonusStage[0], InitSeelBonusStage[1], seel_visited, self)
+
+        def mewtwo_visited(context):
+            context.mewtwo_stages_visited += 1
+        self.pyboy.hook_register(InitMewtwoBonusStage[0], InitMewtwoBonusStage[1], mewtwo_visited, self)
+
+        def meowth_completed(context):
+            context.meowth_stages_completed += 1
+        self.pyboy.hook_register(MeowthStageComplete[0], MeowthStageComplete[1], meowth_completed, self)
+
+        def diglett_completed(context):
+            context.diglett_stages_completed += 1
+        self.pyboy.hook_register(DiglettStageComplete[0], DiglettStageComplete[1], diglett_completed, self)
+
+        def gengar_completed(context):
+            context.gengar_stages_completed += 1
+        self.pyboy.hook_register(GengarStageComplete[0], GengarStageComplete[1], gengar_completed, self)
+
+        def seel_completed(context):
+            context.seel_stages_completed += 1
+        self.pyboy.hook_register(SeelStageComplete[0], SeelStageComplete[1], seel_completed, self)
+
+        def mewtwo_completed(context):
+            context.mewtwo_stages_completed += 1
+        self.pyboy.hook_register(MewtwoStageComplete[0], MewtwoStageComplete[1], mewtwo_completed, self)
+
+
+
 def rom_address_to_bank_and_offset(address):
     """
     Convert a ROM address to a bank and offset
@@ -670,6 +708,11 @@ InitMeowthBonusStage=(9,0x4000)
 InitGengarBonusStage=(6,0x4099)
 InitSeelBonusStage=(9,0x5a7c)
 InitMewtwoBonusStage=(6,0x524f)
+DiglettStageComplete=(6,0x6bf2)
+GengarStageComplete=(6,0x4a14)
+MeowthStageComplete=(9,0x444b)
+SeelStageComplete=(9,0x5c5a)
+MewtwoStageComplete=(6,0x565e)
 
 
 RedStageMapWildMons = {
