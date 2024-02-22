@@ -256,11 +256,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.evolution_failure_count = 0
         self.evolution_success_count = 0
         
-        self._inEvolutionMode = 0
-        self._prevEvolutionState = 0
-        self._evolutionState = 0
-        self._evolutionCounted = False
-        
         ########################
         # Bonus stage tracking #
         ########################
@@ -289,29 +284,13 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         ###########################
         # Pokemon Caught Tracking #
         ###########################
-        self._previous_pokemon_caught_in_session = 0
-        self._pokemon_caught_overflow_count = 0
-        self.actual_pokemon_caught_in_session = 0
         self.pokemon_caught_in_session = 0
-        """The number of pokemon caught in the current session, including overflow"""
+        self.pokemon_seen_in_session = 0
+
+        self._add_hooks()
 
         super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
-
-    #This may increment erradiacally, needs testing
-    def _update_evolution_counts(self):
-        self._inEvolutionMode =  self.pyboy.memory[ADDR_SPECIAL_MODE] == SpecialMode.EVOLVE.value and self.pyboy.memory[ADDR_SPECIAL_MODE_ACTIVE] == 1 
-        self._prevEvolutionState = self._evolutionState
-        self._evolutionState = self.pyboy.memory[ADDR_SPECIAL_MODE_STATE]
-        
-        if self._inEvolutionMode and self._prevEvolutionState == 0  and self._evolutionState == 2 and not self._evolutionCounted:
-            self.evolution_failure_count += 1
-            self._evolutionCounted = True
-        elif self._inEvolutionMode and self._prevEvolutionState == 0  and self._evolutionState == 1 and not self._evolutionCounted:
-            self.evolution_success_count += 1
-            self._evolutionCounted = True
-        elif not self._inEvolutionMode:
-            self._evolutionCounted = False
 
     def _update_pokedex(self):
         for pokemon in Pokemon:
@@ -336,12 +315,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             pokemon (Pokemon): The pokemon to check for
         """
         return self.pokedex[pokemon.value] == 2
-
-    def has_completed_current_map(self):
-        """
-        Check if the player has completed the current map
-        """
-        return self.pyboy.memory[ADDR_CURRENT_MAP]
 
     def set_unlimited_saver(self, unlimited_saver=True):
         self._unlimited_saver = unlimited_saver
@@ -582,7 +555,25 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             "Pokemon caught in session: " + str(self.actual_pokemon_caught_in_session) + "\n"
         )
         # yapf: enable
+    
+    def _add_hooks(self):
+        def completed_evolution(context):
+            context.evolution_success_count += 1
+        self.pyboy.hook_register(CompleteEvolutionMode_RedField[0], CompleteEvolutionMode_RedField[1], completed_evolution, self)
+        self.pyboy.hook_register(CompleteEvolutionMode_BlueField[0], CompleteEvolutionMode_BlueField[1], completed_evolution, self)
 
+        def failed_evolution(context):
+            context.evolution_failure_count += 1
+        self.pyboy.hook_register(FailEvolutionMode_RedField[0], FailEvolutionMode_RedField[1], failed_evolution, self)
+        self.pyboy.hook_register(FailEvolutionMode_BlueField[0], FailEvolutionMode_BlueField[1], failed_evolution, self)
+
+        def pokemon_caught(context):
+            context.pokemon_caught_in_session += 1
+        self.pyboy.hook_register(AddCaughtPokemonToParty[0], AddCaughtPokemonToParty[1], pokemon_caught, self)
+
+        def pokemon_seen(context):
+            context.pokemon_seen_in_session += 1
+        self.pyboy.hook_register(SetPokemonSeenFlag[0], SetPokemonSeenFlag[1], pokemon_seen, self)
 
 def rom_address_to_bank_and_offset(address):
     """
@@ -674,6 +665,12 @@ ROM_ADDR_PAUSE_BANK = 0xd954
 ROM_ADDR_PAUSE_METHOD_CALL = 0xd956
 ROM_ADDR_PAUSE_METHOD = 0x86d7
 
+CompleteEvolutionMode_BlueField= (8,0x4d30)
+CompleteEvolutionMode_RedField=(8,0x470b)
+FailEvolutionMode_BlueField=(8,0x4d7c)
+FailEvolutionMode_RedField=(8,0x4757)
+AddCaughtPokemonToParty=(4,0x473d)
+SetPokemonSeenFlag=(4,0x4753)
 
 
 RedStageMapWildMons = {
