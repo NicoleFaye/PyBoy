@@ -422,19 +422,19 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_D580] = 1
 
     def enable_evolve_hack(self, unlimited_time=False):
-        bank_addr_evo = rom_address_to_bank_and_address(ROM_ADDR_START_EVOLUTION_METHOD)
-        self.pyboy.memory[rom_address_to_bank_and_address(ROM_ADDR_PAUSE_BANK)] = bank_addr_evo[0]
+        bank_addr_evo = rom_address_to_bank_and_offset(ROM_ADDR_START_EVOLUTION_METHOD)
 
         lower_8bits = bank_addr_evo[1] & 0xFF
         upper_8bits = (bank_addr_evo[1]>> 8) & 0xFF
 
-        bank_addr_pause=rom_address_to_bank_and_address(ROM_ADDR_PAUSE_METHOD_CALL) 
-        print("lower:",lower_8bits)
-        print(self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] )
+        bank_addr_pause=rom_address_to_bank_and_offset(ROM_ADDR_PAUSE_METHOD_CALL) 
+
+        self.pyboy.memory[rom_address_to_bank_and_offset(ROM_ADDR_PAUSE_BANK)] = bank_addr_evo[0]
         self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] = lower_8bits
-        print(self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] )
         self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]+1] = upper_8bits
-        print("test")
+        if unlimited_time:
+            #TODO no op out the start time callba macro
+            pass
 
     def current_map_completed(self):
         """
@@ -603,7 +603,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         # yapf: enable
 
 
-def rom_address_to_bank_and_address(address):
+def rom_address_to_bank_and_offset(address):
     """
     Convert a ROM address to a bank and address
 
@@ -613,7 +613,10 @@ def rom_address_to_bank_and_address(address):
     Returns:
         tuple: The bank and address
     """
-    return address // 0x4000, address % 0x4000 + 0x4000
+    if address < 0x4000:
+        return 0, address
+    else:
+        return address // 0x4000, address % 0x4000 + 0x4000
 
 #value starts at 1, increments by 1 for each new ball launch and compares to ADDR_NUM_BALL_LIVES
 ADDR_BALLS_LEFT = 0xD49D
