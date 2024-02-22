@@ -224,10 +224,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The shape of the game area"""
         self.score = 0
         """The score provided by the game"""
-        self._previous_score = 0
-        self._score_overflow_count = 0
-        self.actual_score = 0
-        """The score provided by the game, including overflow"""
         self.balls_left = 0
         """The lives remaining provided by the game"""
         self.game_over = False
@@ -347,13 +343,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """
         return self.pyboy.memory[ADDR_CURRENT_MAP]
 
-    def enable_score_overflow(self):
-        """
-        Override rom memory to enable score overflow
-        """
-        for i in range(NO_OP_BYTE_WIDTH_SCORE_OVERFLOW_OVERRIDE):
-            self.pyboy.memory[ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE,ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE + i] = 0x00
-
     def set_unlimited_saver(self, unlimited_saver=True):
         self._unlimited_saver = unlimited_saver
 
@@ -390,16 +379,9 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE] = 0b100
             self.pyboy.memory[ADDR_STAGE_COLLISION_STATE_HELPER] = 0b100
 
-    def _clear_message_buffer(self):
-        """
-        Override memory to clear the message buffer to clean up the score display
-        """
-        for i in range(MESSAGE_BUFFER_BYTE_WIDTH):
-            self.pyboy.memory[ADDR_MESSAGE_BUFFER + i] = 129
-
     def _calculate_fitness(self):
-        #TODO completly redo fitness function
-        self.fitness = self.actual_score * self.get_unique_pokemon_caught()
+        pass
+
 
     def start_catch_mode(self, pokemon=Pokemon.BULBASAUR, unlimited_time=False):
         # All values are based on PRET disassembly
@@ -433,8 +415,14 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]] = lower_8bits
         self.pyboy.memory[bank_addr_pause[0], bank_addr_pause[1]+1] = upper_8bits
         if unlimited_time:
-            #TODO no op out the start time callba macro
-            pass
+            def disable_timer(context):
+                context.memory[ADDR_TIMER_ACTIVE] = 0
+            bank=4
+            offset=0x4d64
+            try:
+                self.pyboy.hook_register(bank,offset,disable_timer,self.pyboy)
+            except:
+                pass #hook already exists
 
     def current_map_completed(self):
         """
@@ -515,18 +503,11 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.current_map = self.pyboy.memory[ADDR_CURRENT_MAP]
 
         #Score tracking logic
-        self._previous_score = self.score
         self.score = bcd_to_dec(
             int.from_bytes(self.pyboy.memory[ADDR_SCORE:ADDR_SCORE + SCORE_BYTE_WIDTH], "little"),
             byte_width=SCORE_BYTE_WIDTH
         ) * 10
-        old_overflow_count = self._score_overflow_count
-        if self.score < self._previous_score:
-            self._score_overflow_count += 1
-        self.actual_score = self.score + self._score_overflow_count * (MAX_SCORE+10)
-        #if there is an overflow, clear the message buffer to ensure correct current score is displayed
-        if old_overflow_count != self._score_overflow_count:
-            self._clear_message_buffer()
+        
         self.multiplier = self.pyboy.memory[ADDR_MULTIPLIER]
 
         #Stage tracking logic
@@ -678,11 +659,6 @@ ADDR_MULTIPLIER = 0xD482
 ADDR_TO_NO_OP_STAGE_OVERRIDE = 0x1774 + 37
 ADDR_TO_NO_OP_BANK_STAGE_OVERRIDE = 3
 NO_OP_BYTE_WIDTH_STAGE_OVERRIDE = 11
-
-#performing this no op will enable the score to overflow to allow for larger scores
-ADDR_TO_NO_OP_SCORE_OVERFLOW_OVERRIDE = 0x622
-ADDR_TO_NO_OP_BANK_SCORE_OVERFLOW_OVERRIDE = 2
-NO_OP_BYTE_WIDTH_SCORE_OVERFLOW_OVERRIDE = 3
 
 ADDR_SPECIAL_MODE = 0xD550
 ADDR_SPECIAL_MODE_ACTIVE = 0xD54B
