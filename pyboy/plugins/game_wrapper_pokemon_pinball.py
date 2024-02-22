@@ -275,6 +275,8 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         # Pikachu Saver tracking #
         ##########################
         self.pikachu_saver_charge = 0 # range of 0-15
+        self.pikachu_saver_increments = 0
+        self.pikachu_saver_used = 0
         
         ################
         # Map tracking #
@@ -615,6 +617,16 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             context.map_change_successes += 1
         self.pyboy.hook_register(MapChangeSuccess[0], MapChangeSuccess[1], map_change_success, self)
 
+        def pika_saver_increment(context):
+            context.pikachu_saver_increments += 1
+        self.pyboy.hook_register(PikaSaverIncrement_BlueField[0], PikaSaverIncrement_BlueField[1], pika_saver_increment, self)
+        self.pyboy.hook_register(PikaSaverIncrement_RedField[0], PikaSaverIncrement_RedField[1], pika_saver_increment, self)
+
+        def pika_saver_used(context):
+            context.pikachu_saver_used += 1
+        self.pyboy.hook_register(PikaSaverUsed_BlueField[0], PikaSaverUsed_BlueField[1], pika_saver_used, self)
+        self.pyboy.hook_register(PikaSaverUsed_RedField[0], PikaSaverUsed_RedField[1], pika_saver_used, self)
+
 
 
 def rom_address_to_bank_and_offset(address):
@@ -725,6 +737,10 @@ SeelStageComplete=(9,0x5c5a)
 MewtwoStageComplete=(6,0x565e)
 MapChangeAttempt=(0xc,0x41ec)
 MapChangeSuccess=(0xc,0x55d5)
+PikaSaverIncrement_BlueField=(0x7,0x4aff)
+PikaSaverIncrement_RedField=(0x5,0x4e8a)
+PikaSaverUsed_BlueField=(0x7,0x50c9)
+PikaSaverUsed_RedField=(0x5,0x6634)
 
 
 RedStageMapWildMons = {
