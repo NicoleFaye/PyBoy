@@ -605,13 +605,12 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
 def rom_address_to_bank_and_offset(address):
     """
-    Convert a ROM address to a bank and address
+    Convert a ROM address to a bank and offset
 
     Args:
         address (int): The ROM address
-
     Returns:
-        tuple: The bank and address
+        tuple: The bank and offset
     """
     if address < 0x4000:
         return 0, address
