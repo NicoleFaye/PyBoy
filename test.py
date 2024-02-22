@@ -1,5 +1,5 @@
 from pyboy import PyBoy
-from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage
+from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage, rom_address_to_bank_and_offset
 from pyboy.utils import WindowEvent, bcd_to_dec
 
 pyboy = PyBoy("pinball.gbc", game_wrapper=True)
@@ -10,14 +10,15 @@ pinball.start_game(stage=Stage.BLUE_BOTTOM)
 pyboy.set_emulation_speed(1)
 
 pyboy.load_state(open("test.state", "rb"))
-pinball.enable_evolve_hack()
-while True:
-    pyboy.tick()
+pinball.enable_evolve_hack(unlimited_time=True)
 
-addy=0x5946 #0xd946 call PlaySoundEffect
-addy+=3 # translates to 0xcd 0xaf 0x4b
-bank = 0x3
-for i in range(70):
+#while True:
+#    pyboy.tick()
+
+addy=0x10d1d
+bank,addy = rom_address_to_bank_and_offset(addy)
+
+for i in range(170):
     print(hex(addy+i)," ",hex(pyboy.memory[bank,addy+i]))
 
 
