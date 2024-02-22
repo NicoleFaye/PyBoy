@@ -11,9 +11,11 @@ pyboy.set_emulation_speed(1)
 
 pyboy.load_state(open("test.state", "rb"))
 pinball.enable_evolve_hack(unlimited_time=True)
+pinball.enable_evolve_hack(unlimited_time=True)
 
-#while True:
-#    pyboy.tick()
+while True:
+    pyboy.tick()
+    print(pinball.evolution_success_count)
 
 addy=0x10d1d
 bank,addy = rom_address_to_bank_and_offset(addy)
