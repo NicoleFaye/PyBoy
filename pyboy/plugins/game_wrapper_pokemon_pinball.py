@@ -297,6 +297,11 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.ultra_ball_upgrades = 0
         self.master_ball_upgrades = 0
 
+        #######################
+        # Extra Ball Tracking #
+        #######################
+        self.extra_balls_added = 0
+
         self._add_hooks()
 
         super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
@@ -639,6 +644,14 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pyboy.hook_register(BallUpgradeTrigger_BlueField[0], BallUpgradeTrigger_BlueField[1], ball_upgrade_trigger, self)
         self.pyboy.hook_register(BallUpgradeTrigger_RedField[0], BallUpgradeTrigger_RedField[1], ball_upgrade_trigger, self)
 
+        def extra_ball_added(context):
+            context.extra_balls_added += 1
+        self.pyboy.hook_register(AddExtraBall[0], AddExtraBall[1], extra_ball_added, self)
+        #This prevents slot reward extra ball from being counted as it is RNG based and not a good fitness metric
+        def slot_reward_extra_ball(context):
+            context.extra_balls_added -= 1
+        self.pyboy.hook_register(SlotRewardExtraBall[0], SlotRewardExtraBall[1], slot_reward_extra_ball, self)
+
 
 
 def rom_address_to_bank_and_offset(address):
@@ -756,6 +769,8 @@ PikaSaverUsed_BlueField=(0x7,0x50c9)
 PikaSaverUsed_RedField=(0x5,0x6634)
 BallUpgradeTrigger_BlueField=(0x7,0x63de)
 BallUpgradeTrigger_RedField=(0x5,0x53c0)
+AddExtraBall=(0xc,0x4164)
+SlotRewardExtraBall=(0x3,0x6fa7)
 
 
 RedStageMapWildMons = {
