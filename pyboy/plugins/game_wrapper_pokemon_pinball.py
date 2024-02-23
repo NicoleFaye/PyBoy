@@ -302,6 +302,12 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         #######################
         self.extra_balls_added = 0
 
+        #################
+        # Slot Tracking #
+        #################
+        self.slots_opened= 0
+        self.slots_entered= 0
+
         self._add_hooks()
 
         super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
@@ -388,6 +394,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             self.pyboy.memory[ADDR_TIMER_ACTIVE] = 1
             self.pyboy.memory[ADDR_D580] = 1
 
+    #replaces pause button with evolution start
     def enable_evolve_hack(self, unlimited_time=False):
         bank_addr_evo = rom_address_to_bank_and_offset(ROM_ADDR_START_EVOLUTION_METHOD)
 
@@ -495,29 +502,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         
         self.multiplier = self.pyboy.memory[ADDR_MULTIPLIER]
 
-        #Stage tracking logic
-        if self.current_stage != self.pyboy.memory[ADDR_CURRENT_STAGE]:
-            self._previous_stage = self.current_stage
-            self.current_stage = self.pyboy.memory[ADDR_CURRENT_STAGE]
-
-        #bonus stage tracking logic
-        if self.current_stage in AllBonusStageValues and not self._bonus_stage_seen:
-            self._bonus_stage_seen = True
-            self.bonus_stages_visited += 1
-        elif self.current_stage not in AllBonusStageValues:
-            self._bonus_stage_seen = False
-
-        #needs testing
-        #bonus stage completed tracking logic
-        if self._previous_stage in AllBonusStageValues and self.current_stage not in AllBonusStageValues:
-            if self.pyboy.memory[ADDR_BONUS_STAGE_WON] == 1:
-                self.bonus_stages_completed += 1
-
-                # normally i wouldnt edit game vars in tracking, but setting this to zero is an easy way for me to track it
-                # and it will be initialized to 0 at the start of the next bonus stage without being used outside of the bonus stage
-                self.pyboy.memory[ADDR_BONUS_STAGE_WON] = 0
-
-        #mostly for debugging TODO track incrementing of this var
         self.ball_size = self.pyboy.memory[ADDR_BALL_SIZE]
 
         #Ball saver tracking logic
@@ -647,7 +631,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         def extra_ball_added(context):
             context.extra_balls_added += 1
         self.pyboy.hook_register(AddExtraBall[0], AddExtraBall[1], extra_ball_added, self)
-        #This prevents slot reward extra ball from being counted as it is RNG based and not a good fitness metric
+        #This prevents slot reward extra ball from being counted as it is mostly RNG based and not a good fitness metric
         def slot_reward_extra_ball(context):
             context.extra_balls_added -= 1
         self.pyboy.hook_register(SlotRewardExtraBall[0], SlotRewardExtraBall[1], slot_reward_extra_ball, self)
@@ -771,7 +755,6 @@ BallUpgradeTrigger_BlueField=(0x7,0x63de)
 BallUpgradeTrigger_RedField=(0x5,0x53c0)
 AddExtraBall=(0xc,0x4164)
 SlotRewardExtraBall=(0x3,0x6fa7)
-
 
 RedStageMapWildMons = {
     Maps.PALLET_TOWN: {
