@@ -290,6 +290,13 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pokemon_caught_in_session = 0
         self.pokemon_seen_in_session = 0
 
+        #########################
+        # Ball upgrade Tracking #
+        #########################
+        self.great_ball_upgrades = 0
+        self.ultra_ball_upgrades = 0
+        self.master_ball_upgrades = 0
+
         self._add_hooks()
 
         super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
@@ -622,6 +629,16 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pyboy.hook_register(PikaSaverUsed_BlueField[0], PikaSaverUsed_BlueField[1], pika_saver_used, self)
         self.pyboy.hook_register(PikaSaverUsed_RedField[0], PikaSaverUsed_RedField[1], pika_saver_used, self)
 
+        def ball_upgrade_trigger(context):
+            if context.ball_type == BallType.POKEBALL.value:
+                context.great_ball_upgrades += 1
+            elif context.ball_type == BallType.GREAT_BALL.value:
+                context.ultra_ball_upgrades += 1
+            elif context.ball_type == BallType.ULTRA_BALL.value:
+                context.master_ball_upgrades += 1
+        self.pyboy.hook_register(BallUpgradeTrigger_BlueField[0], BallUpgradeTrigger_BlueField[1], ball_upgrade_trigger, self)
+        self.pyboy.hook_register(BallUpgradeTrigger_RedField[0], BallUpgradeTrigger_RedField[1], ball_upgrade_trigger, self)
+
 
 
 def rom_address_to_bank_and_offset(address):
@@ -737,6 +754,8 @@ PikaSaverIncrement_BlueField=(0x7,0x4aff)
 PikaSaverIncrement_RedField=(0x5,0x4e8a)
 PikaSaverUsed_BlueField=(0x7,0x50c9)
 PikaSaverUsed_RedField=(0x5,0x6634)
+BallUpgradeTrigger_BlueField=(0x7,0x63de)
+BallUpgradeTrigger_RedField=(0x5,0x53c0)
 
 
 RedStageMapWildMons = {
