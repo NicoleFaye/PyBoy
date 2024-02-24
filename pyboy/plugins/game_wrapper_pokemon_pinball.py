@@ -300,13 +300,16 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         #######################
         # Extra Ball Tracking #
         #######################
-        self.extra_balls_added = 0
+        self.extra_balls_added = 0 # Does not include extra balls rewarded via roulette
 
         #################
         # Slot Tracking #
         #################
-        self.slots_opened= 0
-        self.slots_entered= 0
+        self.roulette_slots_opened= 0
+        self.roulette_slots_entered= 0
+        #TODO do other slots too
+        
+        #TODO track smaller steps to larger events
 
         self._add_hooks()
 
@@ -494,7 +497,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
         self.current_map = self.pyboy.memory[ADDR_CURRENT_MAP]
 
-        #Score tracking logic
         self.score = bcd_to_dec(
             int.from_bytes(self.pyboy.memory[ADDR_SCORE:ADDR_SCORE + SCORE_BYTE_WIDTH], "little"),
             byte_width=SCORE_BYTE_WIDTH
@@ -504,7 +506,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
         self.ball_size = self.pyboy.memory[ADDR_BALL_SIZE]
 
-        #Ball saver tracking logic
         self.pikachu_saver_charge = self.pyboy.memory[ADDR_PIKACHU_SAVER_CHARGE]
         self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
 
@@ -529,15 +530,13 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         return (
             "PokemonPinball:\n" +
             "Score: " + str(self.score) + "\n" +
-            "Actual score: " + str(self.actual_score) + "\n" +
             "Multiplier: " + str(self.multiplier) + "\n" +
             "Balls left: " + str(self.balls_left) + "\n" +
             "Ball type: " + str(BallType(self.ball_type).name) + "\n" +
-            "Ball size: " + str(BallSize(self.ball_size).name) + "\n" +
             "Current stage: " + str(Stage(self.current_stage).name) + "\n" +
             "Game over: " + str(self.game_over) + "\n" +
             "Ball saver seconds left: " + str(self.ball_saver_seconds_left) + "\n" +
-            "Pokemon caught in session: " + str(self.actual_pokemon_caught_in_session) + "\n"
+            "Pokemon caught in session: " + str(self.pokemon_caught_in_session) + "\n"
         )
         # yapf: enable
     
@@ -635,6 +634,15 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         def slot_reward_extra_ball(context):
             context.extra_balls_added -= 1
         self.pyboy.hook_register(SlotRewardExtraBall[0], SlotRewardExtraBall[1], slot_reward_extra_ball, self)
+
+        def opened_slot_by_getting_4_cave_lights(context):
+            context.roulette_slots_opened += 1
+        self.pyboy.hook_register(OpenedSlotByGetting4CaveLights_Blue[0], OpenedSlotByGetting4CaveLights_Blue[1], opened_slot_by_getting_4_cave_lights, self)
+        self.pyboy.hook_register(OpenedSlotByGetting4CaveLights_Red[0], OpenedSlotByGetting4CaveLights_Red[1], opened_slot_by_getting_4_cave_lights, self)
+
+        def slot_reward_roulette(context):
+            context.roulette_slots_entered += 1
+        self.pyboy.hook_register(SlotRewardRoulette[0], SlotRewardRoulette[1], slot_reward_roulette, self)
 
 
 
@@ -755,6 +763,9 @@ BallUpgradeTrigger_BlueField=(0x7,0x63de)
 BallUpgradeTrigger_RedField=(0x5,0x53c0)
 AddExtraBall=(0xc,0x4164)
 SlotRewardExtraBall=(0x3,0x6fa7)
+OpenedSlotByGetting4CaveLights_Blue=(0x7,0x667e)
+OpenedSlotByGetting4CaveLights_Red=(0x5,0x5284)
+SlotRewardRoulette=(0x3,0x6d8e)
 
 RedStageMapWildMons = {
     Maps.PALLET_TOWN: {
