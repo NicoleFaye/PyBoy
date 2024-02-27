@@ -309,6 +309,20 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.roulette_slots_entered= 0
         #TODO do other slots too
         
+
+        #might discard this granular tracking, as it could be inferred from the visual state of the game
+        ####################
+        # Diglett Tracking #
+        ####################
+        #self.left_diglett_hits=0
+        #self.first_left_diglett_hits=0
+        #self.second_left_diglett_hits=0
+        #self.third_left_diglett_hits=0
+        #self.right_diglett_hits=0
+        #self.first_right_diglett_hits=0
+        #self.second_right_diglett_hits=0
+        #self.third_right_diglett_hits=0
+
         #TODO track smaller steps to larger events
 
         self._add_hooks()
@@ -515,15 +529,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self._update_pokedex()
 
 
-    def sum_number_on_screen(self, x, y, length, blank_tile_identifier, tile_identifier_offset):
-        #TODO remove after done testing
-        number = 0
-        newx = x
-        for i, x in enumerate(self.pyboy.botsupport_manager().tilemap_window()[newx:newx + length, y]):
-            if x != blank_tile_identifier:
-                number += (x+tile_identifier_offset) * (10**(length - 1 - i))
-        return number
-
     def __repr__(self):
         adjust = 4
         # yapf: disable
@@ -644,6 +649,13 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             context.roulette_slots_entered += 1
         self.pyboy.hook_register(SlotRewardRoulette[0], SlotRewardRoulette[1], slot_reward_roulette, self)
 
+        #TODO test this
+        def resolve_diglett_collision(context):
+            which_diglett = context.pyboy.memory[ADDR_WHICH_DIGLETT]
+            left_map_move_counter = context.pyboy.memory[ADDR_LEFT_MAP_MOVE_COUNTER]
+            right_map_move_counter = context.pyboy.memory[ADDR_RIGHT_MAP_MOVE_COUNTER]
+            #TODO finishi
+        self.pyboy.hook_register(ResolveDiglettCollision[0], ResolveDiglettCollision[1], resolve_diglett_collision, self)
 
 
 def rom_address_to_bank_and_offset(address):
@@ -677,6 +689,10 @@ TILE_ILLUMINATION_BYTE_WIDTH = 48
 
 ADDR_MESSAGE_BUFFER = 0xc600
 MESSAGE_BUFFER_BYTE_WIDTH = 100
+
+ADDR_WHICH_DIGLETT = 0xd4ed
+ADDR_RIGHT_MAP_MOVE_COUNTER = 0xd4f2
+ADDR_LEFT_MAP_MOVE_COUNTER = 0xd4f0
 
 ADDR_TIMER_SECONDS = 0xd57a
 ADDR_TIMER_MINUTES = 0xd57b
@@ -766,6 +782,8 @@ SlotRewardExtraBall=(0x3,0x6fa7)
 OpenedSlotByGetting4CaveLights_Blue=(0x7,0x667e)
 OpenedSlotByGetting4CaveLights_Red=(0x5,0x5284)
 SlotRewardRoulette=(0x3,0x6d8e)
+#ResolveDiglettCollision=(0x5,0x47aa)
+ResolveDiglettCollision=(0x5,0x47b1) #offset so it only triggers when one is hit
 
 RedStageMapWildMons = {
     Maps.PALLET_TOWN: {
