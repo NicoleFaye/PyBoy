@@ -3,17 +3,19 @@ from gym import spaces
 import numpy as np
 from pyboy import PyBoy
 from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage, rom_address_to_bank_and_offset
+from enum import Enum
 
-actions = {
-    'left_flipper': 0,
-    'right_flipper': 1,
-    'both_flippers': 2,
-    'left_tilt': 3,
-    'right_tilt': 4,
-    'up_tilt': 5,
-    'left_up_tilt': 6,
-    'right_up_tilt': 7,
-}
+class Actions(Enum):
+    LEFT_FLIPPER_PRESS = 0
+    RIGHT_FLIPPER_PRESS = 1
+    LEFT_FLIPPER_RELEASE = 2
+    RIGHT_FLIPPER_RELEASE = 3
+    BOTH_FLIPPERS = 4
+    LEFT_TILT = 5
+    RIGHT_TILT = 6
+    UP_TILT = 7
+    LEFT_UP_TILT = 8
+    RIGHT_UP_TILT = 9
 
 # Assuming the game area is a fixed-size matrix
 matrix_shape = (18, 10)
@@ -33,7 +35,7 @@ class PokemonPinball(gym.Env):
 
     def __init__(self, pinball_wrapper):
         super(PokemonPinball, self).__init__()
-        self.action_space = spaces.Discrete(len(actions))
+        self.action_space = spaces.Discrete(len(Actions))
         self.observation_space = spaces.Dict({
             "game_area": game_area_observation_space,
             "additional": additional_observation_space
