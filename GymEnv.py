@@ -6,16 +6,17 @@ from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage, rom_addre
 from enum import Enum
 
 class Actions(Enum):
-    LEFT_FLIPPER_PRESS = 0
-    RIGHT_FLIPPER_PRESS = 1
-    LEFT_FLIPPER_RELEASE = 2
-    RIGHT_FLIPPER_RELEASE = 3
-    BOTH_FLIPPERS = 4
-    LEFT_TILT = 5
-    RIGHT_TILT = 6
-    UP_TILT = 7
-    LEFT_UP_TILT = 8
-    RIGHT_UP_TILT = 9
+    IDLE = 0
+    LEFT_FLIPPER_PRESS = 1
+    RIGHT_FLIPPER_PRESS = 2
+    LEFT_FLIPPER_RELEASE = 3
+    RIGHT_FLIPPER_RELEASE = 4
+    BOTH_FLIPPERS = 5
+    LEFT_TILT = 6
+    RIGHT_TILT = 7
+    UP_TILT = 8
+    LEFT_UP_TILT = 9
+    RIGHT_UP_TILT = 10
 
 # Assuming the game area is a fixed-size matrix
 matrix_shape = (18, 10)
