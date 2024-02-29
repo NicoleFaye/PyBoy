@@ -55,6 +55,10 @@ cdef class GameWrapperPokemonPinball(PyBoyGameWrapper):
     cdef public int first_right_diglett_hits
     cdef public int second_right_diglett_hits
     cdef public int third_right_diglett_hits
+    cdef public int ball_x
+    cdef public int ball_y
+    cdef public int ball_x_velocity
+    cdef public int ball_y_velocity
 
 
     cdef bint _unlimited_saver

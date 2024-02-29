@@ -244,6 +244,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The pokedex state"""
         self._unlimited_saver = False
         """The unlimited saver state"""
+        self.ball_x =0
+        self.ball_y =0
+        self.ball_x_velocity =0
+        self.ball_y_velocity =0
         
         ##########################
         # Fitness Related Values #
@@ -346,6 +350,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self._set_timer_div(timer_div)
 
     def has_pokemon(self, pokemon):
+        #TODO TEST THIS
         """
         Check if the player has caught the given pokemon
 
@@ -520,6 +525,11 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
 
         self.ball_size = self.pyboy.memory[ADDR_BALL_SIZE]
 
+        self.ball_x = self.pyboy.memory[ADDR_BALL_X]
+        self.ball_y = self.pyboy.memory[ADDR_BALL_Y]
+        self.ball_x_velocity = self.pyboy.memory[ADDR_BALL_X_VELOCITY]
+        self.ball_y_velocity = self.pyboy.memory[ADDR_BALL_Y_VELOCITY]
+
         self.pikachu_saver_charge = self.pyboy.memory[ADDR_PIKACHU_SAVER_CHARGE]
         self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
 
@@ -538,6 +548,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             "Multiplier: " + str(self.multiplier) + "\n" +
             "Balls left: " + str(self.balls_left) + "\n" +
             "Ball type: " + str(BallType(self.ball_type).name) + "\n" +
+            "Ball X: " + str(self.ball_x) + "\n" +
+            "Ball Y: " + str(self.ball_y) + "\n" +
+            "Ball X Velocity: " + str(self.ball_x_velocity) + "\n" +
+            "Ball Y Velocity: " + str(self.ball_y_velocity) + "\n" +
             "Current stage: " + str(Stage(self.current_stage).name) + "\n" +
             "Game over: " + str(self.game_over) + "\n" +
             "Ball saver seconds left: " + str(self.ball_saver_seconds_left) + "\n" +
@@ -679,6 +693,11 @@ ADDR_NUM_BALL_LIVES = 0xD49E
 ADDR_BALL_TYPE = 0xD47E
 ADDR_BALL_SIZE = 0xD4C8
 ADDR_EXTRA_BALLS = 0xd49b
+
+ADDR_BALL_X = 0xd4b3
+ADDR_BALL_Y = 0xd4b5
+ADDR_BALL_X_VELOCITY = 0xd4bb
+ADDR_BALL_Y_VELOCITY = 0xd4bd
 
 ADDR_BALL_SAVER_SECONDS_LEFT = 0xD4A4
 
