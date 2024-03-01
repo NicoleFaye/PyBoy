@@ -29,6 +29,9 @@ class PokemonPinballAgent:
 
         self.gamma = 0.9
 
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
+        self.loss_fn = torch.nn.SmoothL1Loss()
+
     def act(self, state):
         """
     Given a state, choose an epsilon-greedy action and update value of step.
@@ -108,3 +111,13 @@ class PokemonPinballAgent:
             np.arange(0, self.batch_size), best_action
         ]
         return (reward + (1 - done.float()) * self.gamma * next_Q).float()
+
+    def update_Q_online(self, td_estimate, td_target):
+        loss = self.loss_fn(td_estimate, td_target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
+    def sync_Q_target(self):
+        self.net.target.load_state_dict(self.net.online.state_dict())
