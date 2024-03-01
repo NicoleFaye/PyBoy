@@ -11,12 +11,11 @@ class Actions(Enum):
     RIGHT_FLIPPER_PRESS = 2
     LEFT_FLIPPER_RELEASE = 3
     RIGHT_FLIPPER_RELEASE = 4
-    BOTH_FLIPPERS = 5
-    LEFT_TILT = 6
-    RIGHT_TILT = 7
-    UP_TILT = 8
-    LEFT_UP_TILT = 9
-    RIGHT_UP_TILT = 10
+    LEFT_TILT = 5
+    RIGHT_TILT = 6
+    UP_TILT = 7
+    LEFT_UP_TILT = 8
+    RIGHT_UP_TILT = 9
 
 # Assuming the game area is a fixed-size matrix
 matrix_shape = (18, 10)
@@ -34,43 +33,80 @@ additional_observation_space = spaces.Box(
 
 class PokemonPinball(gym.Env):
 
-    def __init__(self, pinball_wrapper):
+    def __init__(self, pyboy, debug=False):
         super(PokemonPinball, self).__init__()
+        self.pyboy = pyboy
+        assert self.pyboy.cartridge_title == "POKEPINBALLVPH"
+        
+        self._fitness=0
+        self._previous_fitness=0
+
+        if not debug:
+            self.pyboy.set_emulation_speed(0)
+
         self.action_space = spaces.Discrete(len(Actions))
         self.observation_space = spaces.Dict({
             "game_area": game_area_observation_space,
-            "additional": additional_observation_space
+            #"additional": additional_observation_space
         })
 
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
         # Move the agent
-        if action == 0 and self.position > 0:
-            self.position -= 1
-        elif action == 1 and self.position < self.goal_position:
-            self.position += 1
+        if action == Actions.IDLE.value:
+            pass
+        elif action == Actions.LEFT_FLIPPER_PRESS.value:
+            self.pyboy.button_press("left")
+        elif action == Actions.RIGHT_FLIPPER_PRESS.value:
+            self.pyboy.button_press("a")
+        elif action == Actions.LEFT_FLIPPER_RELEASE.value:
+            self.pyboy.button_release("left")
+        elif action == Actions.RIGHT_FLIPPER_RELEASE.value:
+            self.pyboy.button_release("a")
+        elif action == Actions.LEFT_TILT.value:
+            self.pyboy.button("down")
+        elif action == Actions.RIGHT_TILT.value:
+            self.pyboy.button("b")
+        elif action == Actions.UP_TILT.value:
+            self.pyboy.button("select")
+        elif action == Actions.LEFT_UP_TILT.value:
+            self.pyboy.button("select")
+            self.pyboy.button("down")
+        elif action == Actions.RIGHT_UP_TILT.value:
+            self.pyboy.button("select")
+            self.pyboy.button("b")
 
-        self.current_step += 1
-        done = self.position == self.goal_position or self.current_step >= self.max_steps
+        self.pyboy.tick()        
 
-        # Calculate reward
-        if self.position == self.goal_position:
-            reward = 1
-        else:
-            reward = -1 / self.max_steps  # Small negative reward to encourage reaching the goal
+        done = pyboy.game_wrapper.game_over
+        
+        self._calculate_fitness()
+        reward=self._fitness-self._previous_fitness
 
-        return self.position, reward, done, {}
+        observation=self._get_obs()
+        info = {}
+
+        return observation, reward, done, info
 
     def reset(self):
-        self.current_step = 0
-        self.position = 0
-        return self.position  # Return the initial observation
+        self.pyboy.game_wrapper.reset_game()
+        self._fitness=0
+        self._previous_fitness=0
+
+        observation=self._get_obs()
+        info = {}
+        return observation, info
 
     def render(self, mode='human'):
-        track = ['-'] * (self.goal_position + 1)
-        track[self.position] = 'A'
-        print(''.join(track))
+        pass
 
     def close(self):
-        pass
+        self.pyboy.stop()
+
+    def _get_obs(self):
+        return {"game_area":self.pyboy.game_area}#,"additional":self.pyboy.ball_position}
+
+    def _calculate_fitness(self):
+        self._previous_fitness=self._fitness
+        self._fitness=self.pyboy.game_wrapper.score
