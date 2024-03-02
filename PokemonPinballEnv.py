@@ -16,25 +16,16 @@ class Actions(Enum):
     LEFT_UP_TILT = 8
     RIGHT_UP_TILT = 9
 
-# Assuming the game area is a fixed-size matrix
 matrix_shape = (18, 10)
-game_area_observation_space = spaces.Box(
-    low=0, high=255, shape=matrix_shape, dtype=np.uint8)
-
-# Example additional observations: ball position (x, y) and velocity (vx, vy)
-# Assuming positions and velocities are normalized to be within [0, 1]
-additional_observation_space = spaces.Box(
-    low=np.array([0.0, 0.0, -1.0, -1.0]),  # Min values for x, y, vx, vy
-    high=np.array([1.0, 1.0, 1.0, 1.0]),   # Max values for x, y, vx, vy
-    dtype=np.float32)
-
-# Define a composite observation space that includes both
+game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
 
 class PokemonPinballEnv(gym.Env):
 
     def __init__(self, pyboy, debug=False):
-        super(PokemonPinball, self).__init__()
+        super().__init__()
         self.pyboy = pyboy
+        if self.pyboy is None:
+            return
         assert self.pyboy.cartridge_title == "POKEPINBALLVPH"
         
         self._fitness=0
@@ -44,10 +35,10 @@ class PokemonPinballEnv(gym.Env):
             self.pyboy.set_emulation_speed(0)
 
         self.action_space = spaces.Discrete(len(Actions))
-        self.observation_space = spaces.Dict({
-            "game_area": game_area_observation_space,
-            #"additional": additional_observation_space
-        })
+        self.observation_space = game_area_observation_space
+            
+
+        self.pyboy.game_wrapper.start_game()
 
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
@@ -78,7 +69,7 @@ class PokemonPinballEnv(gym.Env):
 
         self.pyboy.tick()        
 
-        done = pyboy.game_wrapper.game_over
+        done = self.pyboy.game_wrapper.game_over
         
         self._calculate_fitness()
         reward=self._fitness-self._previous_fitness
@@ -104,7 +95,7 @@ class PokemonPinballEnv(gym.Env):
         self.pyboy.stop()
 
     def _get_obs(self):
-        return {"game_area":self.pyboy.game_area}#,"additional":self.pyboy.ball_position}
+        return self.pyboy.game_area()
 
     def _calculate_fitness(self):
         self._previous_fitness=self._fitness
