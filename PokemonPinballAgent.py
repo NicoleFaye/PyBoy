@@ -3,7 +3,7 @@ import numpy as np
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-import PokemonPinballNet
+from PokemonPinballNet import PokemonPinballNet
 
 class PokemonPinballAgent:
     def __init__(self, state_dim, action_dim, save_dir):
@@ -32,6 +32,10 @@ class PokemonPinballAgent:
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.loss_fn = torch.nn.SmoothL1Loss()
 
+        self.burnin = 1e4  # min. experiences before training
+        self.learn_every = 3  # no. of experiences between updates to Q_online
+        self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
+
     def act(self, state):
         """
     Given a state, choose an epsilon-greedy action and update value of step.
@@ -47,9 +51,13 @@ class PokemonPinballAgent:
 
         # EXPLOIT
         else:
-            state = state[0].__array__() if isinstance(state, tuple) else state.__array__()
-            state = torch.tensor(state, device=self.device).unsqueeze(0)
+            state = state[0] if isinstance(state, tuple) else state
+            state = torch.tensor(np.asarray(state,dtype=np.float32 ), device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
+            print("action_values")
+            print(action_values.shape)
+            print(type(action_values))
+            print(len(action_values))
             action_idx = torch.argmax(action_values, axis=1).item()
 
         # decrease exploration_rate
@@ -71,10 +79,11 @@ class PokemonPinballAgent:
         reward (``float``),
         done(``bool``))
         """
+        
         def first_if_tuple(x):
             return x[0] if isinstance(x, tuple) else x
-        state = first_if_tuple(state).__array__()
-        next_state = first_if_tuple(next_state).__array__()
+        state = np.asarray(first_if_tuple(state),dtype=np.uint8)
+        next_state = np.asarray(first_if_tuple(next_state),dtype=np.uint8)
 
         state = torch.tensor(state)
         next_state = torch.tensor(next_state)
@@ -121,3 +130,40 @@ class PokemonPinballAgent:
 
     def sync_Q_target(self):
         self.net.target.load_state_dict(self.net.online.state_dict())
+
+    def save(self):
+        save_path = (
+            self.save_dir / f"pokemon_pinball_net_{int(self.curr_step // self.save_every)}.chkpt"
+        )
+        torch.save(
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            save_path,
+        )
+        print(f"Pokémon Pinball Net saved to {save_path} at step {self.curr_step}")
+
+    def learn(self):
+        if self.curr_step % self.sync_every == 0:
+            self.sync_Q_target()
+
+        if self.curr_step % self.save_every == 0:
+            self.save()
+
+        if self.curr_step < self.burnin:
+            return None, None
+
+        if self.curr_step % self.learn_every != 0:
+            return None, None
+
+        # Sample from memory
+        state, next_state, action, reward, done = self.recall()
+
+        # Get TD Estimate
+        td_est = self.td_estimate(state, action)
+
+        # Get TD Target
+        td_tgt = self.td_target(reward, next_state, done)
+
+        # Backpropagate loss through Q_online
+        loss = self.update_Q_online(td_est, td_tgt)
+
+        return (td_est.mean().item(), loss)
