@@ -10,7 +10,7 @@ from gymnasium import spaces
 import numpy as np
 from pyboy import PyBoy
 
-pyboy = PyBoy("pinball.gbc")
+pyboy = PyBoy("pinball.gbc",game_wrapper=True)
 
 env=PokemonPinballEnv(pyboy)
 
