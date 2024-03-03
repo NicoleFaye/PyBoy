@@ -328,10 +328,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         #self.third_right_diglett_hits=0
 
         #TODO track smaller steps to larger events
+        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
         self._add_hooks()
 
-        super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
 
 
     def _update_pokedex(self):
@@ -662,7 +662,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         def slot_reward_roulette(context):
             context.roulette_slots_entered += 1
         self.pyboy.hook_register(SlotRewardRoulette[0], SlotRewardRoulette[1], slot_reward_roulette, self)
-
+        """
         #TODO test this
         def resolve_diglett_collision(context):
             which_diglett = context.pyboy.memory[ADDR_WHICH_DIGLETT]
@@ -670,6 +670,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             right_map_move_counter = context.pyboy.memory[ADDR_RIGHT_MAP_MOVE_COUNTER]
             #TODO finishi
         self.pyboy.hook_register(ResolveDiglettCollision[0], ResolveDiglettCollision[1], resolve_diglett_collision, self)
+        """
 
 
 def rom_address_to_bank_and_offset(address):
