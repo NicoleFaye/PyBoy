@@ -34,8 +34,8 @@ cdef class GameWrapperPokemonPinball(PyBoyGameWrapper):
     cdef public int ultra_ball_upgrades
     cdef public int master_ball_upgrades
     cdef public int extra_balls_added
-    cdef public int slots_opened
-    cdef public int slots_entered
+    cdef public int roulette_slots_opened
+    cdef public int roulette_slots_entered
     cdef public int diglett_stages_completed
     cdef public int diglett_stages_visited
     cdef public int gengar_stages_completed
