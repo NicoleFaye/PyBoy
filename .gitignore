@@ -99,4 +99,4 @@ test.replay
 /SameSuite/
 .vscode/
 
-/checkpoints/
+checkpoints/
