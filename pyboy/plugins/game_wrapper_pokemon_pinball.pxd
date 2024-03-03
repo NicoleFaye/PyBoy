@@ -20,8 +20,6 @@ cdef class GameWrapperPokemonPinball(PyBoyGameWrapper):
     cdef public int actual_pokemon_caught_in_session
     cdef public int evolution_count
     cdef public list pokedex
-    cdef public int bonus_stages_completed
-    cdef public int bonus_stages_visited
     cdef public int pikachu_saver_charge
     cdef public int pikachu_saver_increments
     cdef public int pikachu_saver_used
@@ -46,15 +44,14 @@ cdef class GameWrapperPokemonPinball(PyBoyGameWrapper):
     cdef public int mewtwo_stages_visited
     cdef public int seel_stages_completed
     cdef public int seel_stages_visited
-    cdef public int _which_diglett
-    cdef public int left_diglett_hits
-    cdef public int first_left_diglett_hits
-    cdef public int second_left_diglett_hits
-    cdef public int third_left_diglett_hits
-    cdef public int right_diglett_hits
-    cdef public int first_right_diglett_hits
-    cdef public int second_right_diglett_hits
-    cdef public int third_right_diglett_hits
+    #cdef public int left_diglett_hits
+    #cdef public int first_left_diglett_hits
+    #cdef public int second_left_diglett_hits
+    #cdef public int third_left_diglett_hits
+    #cdef public int right_diglett_hits
+    #cdef public int first_right_diglett_hits
+    #cdef public int second_right_diglett_hits
+    #cdef public int third_right_diglett_hits
     cdef public int ball_x
     cdef public int ball_y
     cdef public int ball_x_velocity
