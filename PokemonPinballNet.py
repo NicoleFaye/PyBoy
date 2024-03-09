@@ -29,15 +29,16 @@ class PokemonPinballNet(nn.Module):
             return self.target(input)
 
     def __build_cnn(self, c, output_dim):
+        print("output_dim  ", output_dim)
         return nn.Sequential(
-            nn.Conv2d(in_channels=c, out_channels=32, kernel_size=4, stride=2),
+            nn.Conv2d(in_channels=c, out_channels=32, kernel_size=4, stride=4),
             nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2),
             nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=1, stride=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(15, 512),
+            nn.Linear(3136, 512),
             nn.ReLU(),
             nn.Linear(512, output_dim),
         )
