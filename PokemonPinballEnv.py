@@ -76,8 +76,9 @@ class PokemonPinballEnv(gym.Env):
 
         observation=self._get_obs()
         info = {}
+        truncated = False
 
-        return observation, reward, done, info
+        return observation, reward, done, truncated, info
 
     def reset(self):
         self.pyboy.game_wrapper.reset_game()
