@@ -1,5 +1,4 @@
-from gymnasium import gym
-from gymnasium import wrappers
+import gymnasium as gym
 
 
 class SkipFrame(gym.Wrapper):
