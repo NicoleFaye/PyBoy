@@ -52,14 +52,10 @@ class PokemonPinballAgent:
         # EXPLOIT
         else:
             state = state[0] if isinstance(state, tuple) else state
-            state = torch.tensor(np.asarray(state,dtype=np.float32 ), device=self.device).unsqueeze(0)
+            state = np.asarray(state, dtype=np.float32)
+            state = torch.tensor(state, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
-            print("action_values")
-            print(action_values.shape)
-            print(type(action_values))
-            print(len(action_values))
-            action_idx = torch.argmax(action_values, axis=1).item()
-
+            action_idx = torch.argmax(action_values,dim=1).item()
         # decrease exploration_rate
         self.exploration_rate *= self.exploration_rate_decay
         self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
@@ -82,8 +78,8 @@ class PokemonPinballAgent:
         
         def first_if_tuple(x):
             return x[0] if isinstance(x, tuple) else x
-        state = np.asarray(first_if_tuple(state),dtype=np.uint8)
-        next_state = np.asarray(first_if_tuple(next_state),dtype=np.uint8)
+        state = np.asarray(first_if_tuple(state),dtype=np.float32)
+        next_state = np.asarray(first_if_tuple(next_state),dtype=np.float32)
 
         state = torch.tensor(state)
         next_state = torch.tensor(next_state)
