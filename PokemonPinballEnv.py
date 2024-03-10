@@ -80,7 +80,7 @@ class PokemonPinballEnv(gym.Env):
 
         return observation, reward, done, truncated, info
 
-    def reset(self):
+    def reset(self, **kwargs):
         self.pyboy.game_wrapper.reset_game()
         self._fitness=0
         self._previous_fitness=0
