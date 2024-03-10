@@ -12,15 +12,12 @@ from gymnasium.wrappers import FrameStack
 import numpy as np
 from pyboy import PyBoy
 
-# Function to find the latest checkpoint in the save directory
-def find_latest_checkpoint(save_dir):
-    save_files = list(save_dir.glob('pokemon_pinball_net_*.chkpt'))
-    save_files = sorted(save_files, key=os.path.getmtime, reverse=True)
-    if save_files:
-        return save_files[0]
-    else:
-        return None
-
+# Function to find the latest checkpoint in the checkpoints directory
+def find_latest_checkpoint(base_dir):
+    all_checkpoints = list(base_dir.glob('**/pokemon_pinball_net_*.chkpt'))
+    if all_checkpoints:
+        return max(all_checkpoints, key=os.path.getmtime)
+    return None
 
 pyboy = PyBoy("pinball.gbc",game_wrapper=True)
 #pyboy = PyBoy("pinball.gbc",game_wrapper=False)
@@ -35,25 +32,24 @@ env=FrameStack(env, num_stack=4)
 use_cuda = torch.cuda.is_available()
 print(f"Using CUDA: {use_cuda}")
 
-save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-if not save_dir.exists():
-    save_dir.mkdir(parents=True)
-    latest_checkpoint = None
-else:
-    # Check for a pre-existing save directory
-    latest_checkpoint = find_latest_checkpoint(save_dir)
-    if latest_checkpoint:
-        save_dir = latest_checkpoint.parent
+
+base_save_dir = Path("checkpoints")
+save_dir = base_save_dir / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
 matrix_shape = (4, 18, 10)
 pokemon_pinball_agent = PokemonPinballAgent(state_dim=matrix_shape, action_dim=env.action_space.n, save_dir=save_dir)
 
-# Attempt to load the latest checkpoint
+latest_checkpoint = find_latest_checkpoint(base_save_dir)
+
 if latest_checkpoint:
+    save_dir = latest_checkpoint.parent
+    print(f"Found latest checkpoint at {latest_checkpoint}. Resuming from this checkpoint.")
     pokemon_pinball_agent.load(latest_checkpoint)
-    print(f"Resuming training from checkpoint {latest_checkpoint}")
 else:
-    print("No checkpoint found, starting training from scratch")
+    save_dir.mkdir(parents=True)
+    print("No existing checkpoints found. Created a new directory for this training session.")
+
+
 
 logger = MetricLogger(save_dir)
 
