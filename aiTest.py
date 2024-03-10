@@ -3,30 +3,37 @@ from PokemonPinballMetricLogger import MetricLogger
 from PokemonPinballAgent import PokemonPinballAgent
 from PokemonPinballEnv import PokemonPinballEnv
 from PokemonPinballNet import PokemonPinballNet
+from PokemonPinballWrappers import SkipFrame
 from pathlib import Path
 from collections import deque
 import random, datetime, os
 from gymnasium import spaces
+from gymnasium.wrappers import FrameStack
 import numpy as np
 from pyboy import PyBoy
 
 pyboy = PyBoy("pinball.gbc",game_wrapper=True)
+#pyboy = PyBoy("pinball.gbc",game_wrapper=False)
 
 env=PokemonPinballEnv(pyboy)
 
+# wrappers
+env=SkipFrame(env, skip=4)
+env=FrameStack(env, num_stack=4)
+
+
 use_cuda = torch.cuda.is_available()
 print(f"Using CUDA: {use_cuda}")
-print()
 
 save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
-
-matrix_shape = (1, 18, 10)
+matrix_shape = (4, 18, 10)
 pokemon_pinball_agent = PokemonPinballAgent(state_dim=matrix_shape, action_dim=env.action_space.n, save_dir=save_dir)
+
 
 logger = MetricLogger(save_dir)
 
-episodes = 40
+episodes = 40000
 for e in range(episodes):
 
     state = env.reset()
@@ -38,7 +45,7 @@ for e in range(episodes):
         action = pokemon_pinball_agent.act(state)
 
         # Agent performs action
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, done, truncated, info = env.step(action)
 
         # Remember
         pokemon_pinball_agent.cache(state, next_state, action, reward, done)
