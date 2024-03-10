@@ -1,0 +1,8 @@
+numpy
+matplotlib
+torch
+torchvision
+torchaudio
+torchrl
+tensordict
+gymnasium
