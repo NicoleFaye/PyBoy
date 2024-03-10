@@ -98,10 +98,6 @@ class PokemonPinballAgent:
         state, next_state, action, reward, done = (batch.get(key) for key in ("state", "next_state", "action", "reward", "done"))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
 
-    def learn(self):
-        """Update online action value (Q) function with a batch of experiences"""
-        pass
-
     def td_estimate(self, state, action):
         current_Q = self.net(state, model="online")[
             np.arange(0, self.batch_size), action
@@ -132,10 +128,20 @@ class PokemonPinballAgent:
             self.save_dir / f"pokemon_pinball_net_{int(self.curr_step // self.save_every)}.chkpt"
         )
         torch.save(
-            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate, curr_step=self.curr_step),
             save_path,
         )
         print(f"Pokémon Pinball Net saved to {save_path} at step {self.curr_step}")
+
+    def load(self, load_path):
+        if load_path.is_file():
+            checkpoint = torch.load(load_path)
+            self.net.load_state_dict(checkpoint['model'])
+            self.exploration_rate = checkpoint['exploration_rate']
+            self.curr_step = checkpoint['curr_step']
+            print(f"Loaded the model from {load_path} with exploration rate = {self.exploration_rate}")
+        else:
+            print(f"No checkpoint found at {load_path}")
 
     def learn(self):
         if self.curr_step % self.sync_every == 0:
