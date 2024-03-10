@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 class MetricLogger:
     def __init__(self, save_dir):
         self.save_log = save_dir / "log"
-        with open(self.save_log, "w") as f:
+        with open(self.save_log, "a") as f:
             f.write(
                 f"{'Episode':>8}{'Step':>8}{'Epsilon':>10}{'MeanReward':>15}"
                 f"{'MeanLength':>15}{'MeanLoss':>15}{'MeanQValue':>15}"
