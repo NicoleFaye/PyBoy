@@ -8,10 +8,10 @@ class PokemonPinballNet(nn.Module):
         super().__init__()
         c, h, w = input_dim
 
-        if h != 18:
-            raise ValueError(f"Expecting input height: 18, got: {h}")
-        if w != 10:
-            raise ValueError(f"Expecting input width: 10, got: {w}")
+        if h != 16:
+            raise ValueError(f"Expecting input height: 16, got: {h}")
+        if w != 20:
+            raise ValueError(f"Expecting input width: 20, got: {w}")
 
         self.online = self.__build_cnn(c, output_dim)
 

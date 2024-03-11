@@ -8,6 +8,11 @@ print(pyboy.cartridge_title)
 pinball = pyboy.game_wrapper
 pinball.start_game(stage=Stage.BLUE_BOTTOM)
 pyboy.set_emulation_speed(1)
+for i in range(int(5e5)):
+    pyboy.tick()
+    if i % 20 == 0:
+        print(pyboy.game_area().shape)
+        print('-----------------')
 
 pyboy.load_state(open("test.state", "rb"))
 pinball.enable_evolve_hack(unlimited_time=True)
