@@ -16,7 +16,7 @@ class Actions(Enum):
     LEFT_UP_TILT = 8
     RIGHT_UP_TILT = 9
 
-matrix_shape = (18, 10)
+matrix_shape = (16, 20)
 game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
 
 class PokemonPinballEnv(gym.Env):

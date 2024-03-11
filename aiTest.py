@@ -1,4 +1,4 @@
-model_name= "score_test"
+model_name= "score_test_2"
 
 
 
@@ -18,8 +18,8 @@ import numpy as np
 from pyboy import PyBoy
 
 # Function to find the latest checkpoint in the checkpoints directory
-def find_latest_checkpoint(base_dir):
-    all_checkpoints = list(base_dir.glob('**/pokemon_pinball_net_*.chkpt'))
+def find_latest_checkpoint(save_dir):
+    all_checkpoints = list(save_dir.glob('*/pokemon_pinball_net_*.chkpt'))
     if all_checkpoints:
         return max(all_checkpoints, key=os.path.getmtime)
     return None
@@ -39,12 +39,12 @@ print(f"Using CUDA: {use_cuda}")
 
 
 base_save_dir = Path("checkpoints")
-save_dir = base_save_dir / "score_test" #datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir = base_save_dir / model_name #datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
-matrix_shape = (4, 18, 10)
+matrix_shape = (4, 16, 20)
 pokemon_pinball_agent = PokemonPinballAgent(state_dim=matrix_shape, action_dim=env.action_space.n, save_dir=save_dir)
 
-latest_checkpoint = find_latest_checkpoint(base_save_dir)
+latest_checkpoint = find_latest_checkpoint(save_dir)
 
 if latest_checkpoint:
     save_dir = latest_checkpoint.parent
