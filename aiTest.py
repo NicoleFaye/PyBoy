@@ -1,3 +1,8 @@
+model_name= "score_test"
+
+
+
+
 import torch
 from PokemonPinballMetricLogger import MetricLogger
 from PokemonPinballAgent import PokemonPinballAgent
@@ -34,7 +39,7 @@ print(f"Using CUDA: {use_cuda}")
 
 
 base_save_dir = Path("checkpoints")
-save_dir = base_save_dir / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+save_dir = base_save_dir / "score_test" #datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
 matrix_shape = (4, 18, 10)
 pokemon_pinball_agent = PokemonPinballAgent(state_dim=matrix_shape, action_dim=env.action_space.n, save_dir=save_dir)
