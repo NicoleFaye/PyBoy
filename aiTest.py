@@ -1,4 +1,4 @@
-model_name= "score_test_2"
+model_name= "score_test_3"
 
 
 
@@ -19,7 +19,7 @@ from pyboy import PyBoy
 
 # Function to find the latest checkpoint in the checkpoints directory
 def find_latest_checkpoint(save_dir):
-    all_checkpoints = list(save_dir.glob('*/pokemon_pinball_net_*.chkpt'))
+    all_checkpoints = list(save_dir.glob('**/pokemon_pinball_net_*.chkpt'))
     if all_checkpoints:
         return max(all_checkpoints, key=os.path.getmtime)
     return None
@@ -51,7 +51,7 @@ if latest_checkpoint:
     print(f"Found latest checkpoint at {latest_checkpoint}. Resuming from this checkpoint.")
     pokemon_pinball_agent.load(latest_checkpoint)
 else:
-    save_dir.mkdir(parents=True)
+    save_dir.mkdir(parents=True, exist_ok=True)
     print("No existing checkpoints found. Created a new directory for this training session.")
 
 
