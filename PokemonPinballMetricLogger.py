@@ -6,22 +6,25 @@ import matplotlib.pyplot as plt
 class MetricLogger:
     def __init__(self, save_dir):
         self.save_log = save_dir / "log"
-        with open(self.save_log, "a") as f:
-            f.write(
-                f"{'Episode':>8}{'Step':>8}{'Epsilon':>10}{'MeanReward':>15}"
-                f"{'MeanLength':>15}{'MeanLoss':>15}{'MeanQValue':>15}"
-                f"{'TimeDelta':>15}{'Time':>20}\n"
-            )
-        self.ep_rewards_plot = save_dir / "reward_plot.jpg"
-        self.ep_lengths_plot = save_dir / "length_plot.jpg"
-        self.ep_avg_losses_plot = save_dir / "loss_plot.jpg"
-        self.ep_avg_qs_plot = save_dir / "q_plot.jpg"
+        if self.save_log.exists():
+            with open(self.save_log, "r") as f:
+                lines = f.readlines()[1:]  # Skip the header line
+                self.ep_rewards = [float(line.split()[3]) for line in lines]
+                self.ep_lengths = [int(line.split()[1]) for line in lines]
+                self.ep_avg_losses = [float(line.split()[4]) for line in lines]
+                self.ep_avg_qs = [float(line.split()[5]) for line in lines]
+        else:
+            with open(self.save_log, "w") as f:
+                f.write(
+                    f"{'Episode':>8}{'Step':>8}{'Epsilon':>10}{'MeanReward':>15}"
+                    f"{'MeanLength':>15}{'MeanLoss':>15}{'MeanQValue':>15}"
+                    f"{'TimeDelta':>15}{'Time':>20}\n"
+                )
+            self.ep_rewards = []
+            self.ep_lengths = []
+            self.ep_avg_losses = []
+            self.ep_avg_qs = []
 
-        # History metrics
-        self.ep_rewards = []
-        self.ep_lengths = []
-        self.ep_avg_losses = []
-        self.ep_avg_qs = []
 
         # Moving averages, added for every call to record()
         self.moving_avg_ep_rewards = []
