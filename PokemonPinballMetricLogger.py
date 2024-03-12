@@ -7,6 +7,7 @@ class MetricLogger:
     def __init__(self, save_dir):
         self.save_log = save_dir / "log"
         if self.save_log.exists():
+            print("WARNING: CONITNUING FROM PREVIOUS TRAINING SESSION DOES NOT LOG PROPERLY!!!!")
             with open(self.save_log, "r") as f:
                 lines = f.readlines()[1:]  # Skip the header line
                 self.ep_rewards = [float(line.split()[3]) for line in lines]
