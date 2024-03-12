@@ -1,4 +1,4 @@
-model_name= "score_test_3"
+model_name= "Resume_working"
 
 
 
@@ -46,20 +46,23 @@ pokemon_pinball_agent = PokemonPinballAgent(state_dim=matrix_shape, action_dim=e
 
 latest_checkpoint = find_latest_checkpoint(save_dir)
 
+current_episode = 0
+
 if latest_checkpoint:
-    save_dir = latest_checkpoint.parent
     print(f"Found latest checkpoint at {latest_checkpoint}. Resuming from this checkpoint.")
     pokemon_pinball_agent.load(latest_checkpoint)
+    logger = MetricLogger(save_dir,resume=True)
+    current_episode = logger.episode[-1]
 else:
     save_dir.mkdir(parents=True, exist_ok=True)
+    logger = MetricLogger(save_dir)
     print("No existing checkpoints found. Created a new directory for this training session.")
 
 
 
-logger = MetricLogger(save_dir)
-
 episodes = 40000
-for e in range(episodes):
+print("Starting from episode",current_episode)
+while current_episode < episodes:
 
     state = env.reset()
 
@@ -90,5 +93,6 @@ for e in range(episodes):
 
     logger.log_episode()
 
-    if (e % 20 == 0) or (e == episodes - 1):
-        logger.record(episode=e, epsilon=pokemon_pinball_agent.exploration_rate, step=pokemon_pinball_agent.curr_step)
+    if (current_episode % 20 == 0) or (current_episode == episodes - 1):
+        logger.record(episode=current_episode, epsilon=pokemon_pinball_agent.exploration_rate, step=pokemon_pinball_agent.curr_step)
+    current_episode+=1
