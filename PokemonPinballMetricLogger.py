@@ -13,6 +13,12 @@ class MetricLogger:
                 self.ep_lengths = [int(line.split()[1]) for line in lines]
                 self.ep_avg_losses = [float(line.split()[4]) for line in lines]
                 self.ep_avg_qs = [float(line.split()[5]) for line in lines]
+          # Calculate moving averages from loaded data
+            self.moving_avg_ep_rewards = self.calculate_moving_average(self.ep_rewards)
+            self.moving_avg_ep_lengths = self.calculate_moving_average(self.ep_lengths)
+            self.moving_avg_ep_avg_losses = self.calculate_moving_average(self.ep_avg_losses)
+            self.moving_avg_ep_avg_qs = self.calculate_moving_average(self.ep_avg_qs)
+    
         else:
             with open(self.save_log, "w") as f:
                 f.write(
@@ -42,6 +48,8 @@ class MetricLogger:
         # Timing
         self.record_time = time.time()
 
+    def calculate_moving_average(self, data, window_size=100):
+        return [np.mean(data[max(0, i-window_size+1):i+1]) for i in range(len(data))]
     def log_step(self, reward, loss, q):
         self.curr_ep_reward += reward
         self.curr_ep_length += 1
