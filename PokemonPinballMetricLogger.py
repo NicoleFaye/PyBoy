@@ -23,12 +23,20 @@ class MetricLogger:
             data = np.loadtxt(self.save_log, skiprows=1, unpack=True)
             if data.size > 0:
                 self.episode, self.step, self.epsilon, self.ep_rewards, self.ep_lengths, self.ep_avg_losses, self.ep_avg_qs = data
-                self.episode = list(self.episode.astype(int))
-                self.step = list(self.step.astype(int))
-                self.ep_rewards = list(self.ep_rewards)
-                self.ep_lengths = list(self.ep_lengths)
-                self.ep_avg_losses = list(self.ep_avg_losses)
-                self.ep_avg_qs = list(self.ep_avg_qs)
+                if isinstance(self.episode,list):
+                    self.episode = list(self.episode.astype(int))
+                    self.step = list(self.step.astype(int))
+                    self.ep_rewards = list(self.ep_rewards)
+                    self.ep_lengths = list(self.ep_lengths)
+                    self.ep_avg_losses = list(self.ep_avg_losses)
+                    self.ep_avg_qs = list(self.ep_avg_qs)
+                else:
+                    self.episode = [self.episode]
+                    self.step = [self.step]
+                    self.ep_rewards = list(self.ep_rewards)
+                    self.ep_lengths = list(self.ep_lengths)
+                    self.ep_avg_losses = list(self.ep_avg_losses)
+                    self.ep_avg_qs = list(self.ep_avg_qs)
             else:  # Handle empty log file with header
                 self.reset_lists()
         else:
@@ -77,6 +85,7 @@ class MetricLogger:
         self.init_episode()
 
     def record(self, episode, epsilon, step):
+        print("shape: ",len(self.ep_rewards))
         mean_ep_reward = np.round(np.mean(self.ep_rewards[-100:]), 3)
         mean_ep_length = np.round(np.mean(self.ep_lengths[-100:]), 3)
         mean_ep_loss = np.round(np.mean(self.ep_avg_losses[-100:]), 3)
@@ -100,8 +109,8 @@ class MetricLogger:
 
         with open(self.save_log, "a") as f:
             f.write(
-                f"{episode:<10}{step:<10}{epsilon:<10.3f}"
-                f"{mean_ep_reward:<15}{mean_ep_length:<15}{mean_ep_loss:<15}{mean_ep_q:<15}\n"
+                f"{episode:<11}{step:<15}{epsilon:<12.5f}"
+                f"{mean_ep_reward:<29.0f}{mean_ep_length:<16.0f}{mean_ep_loss:<15.0f}{mean_ep_q:<15.0f}\n"
             )
         self.plot_metrics()
 
