@@ -25,7 +25,7 @@ class PokemonPinballEnv(gym.Env):
         super().__init__()
         self.pyboy = pyboy
         if self.pyboy is None:
-            return
+            raise ValueError("PyBoy instance is required")
         assert self.pyboy.cartridge_title == "POKEPINBALLVPH"
         
         self._fitness=0
