@@ -52,7 +52,7 @@ if latest_checkpoint:
     print(f"Found latest checkpoint at {latest_checkpoint}. Resuming from this checkpoint.")
     pokemon_pinball_agent.load(latest_checkpoint)
     logger = MetricLogger(save_dir,resume=True)
-    current_episode = logger.episode[-1]
+    current_episode = pokemon_pinball_agent.curr_episode
 else:
     save_dir.mkdir(parents=True, exist_ok=True)
     logger = MetricLogger(save_dir)
@@ -96,3 +96,4 @@ while current_episode < episodes:
     if (current_episode % 20 == 0) or (current_episode == episodes - 1):
         logger.record(episode=current_episode, epsilon=pokemon_pinball_agent.exploration_rate, step=pokemon_pinball_agent.curr_step)
     current_episode+=1
+    pokemon_pinball_agent.curr_episode = current_episode

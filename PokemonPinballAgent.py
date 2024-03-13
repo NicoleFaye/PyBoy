@@ -21,6 +21,7 @@ class PokemonPinballAgent:
         self.exploration_rate_decay = 0.99999975
         self.exploration_rate_min = 0.1
         self.curr_step = 0
+        self.curr_episode = 0
 
         self.save_every = 5e5  # no. of experiences between saving Mario Net
 
@@ -127,11 +128,14 @@ class PokemonPinballAgent:
         save_path = (
             self.save_dir / f"pokemon_pinball_net_{int(self.curr_step // self.save_every)}.chkpt"
         )
+        print("saving current episode")
         torch.save(
-            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate, curr_step=self.curr_step),
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate, curr_step=self.curr_step, curr_episode=self.curr_episode,),
             save_path,
         )
         print(f"Pokémon Pinball Net saved to {save_path} at step {self.curr_step}")
+        if self.curr_episode % 20 == 0:
+            quit()
 
     def load(self, load_path):
         if load_path.is_file():
@@ -139,6 +143,8 @@ class PokemonPinballAgent:
             self.net.load_state_dict(checkpoint['model'])
             self.exploration_rate = checkpoint['exploration_rate']
             self.curr_step = checkpoint['curr_step']
+            self.curr_episode = checkpoint['curr_episode']
+            print("loaded current episode",self.curr_episode)
             print(f"Loaded the model from {load_path} with exploration rate = {self.exploration_rate}")
         else:
             print(f"No checkpoint found at {load_path}")
