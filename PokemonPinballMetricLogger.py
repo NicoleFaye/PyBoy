@@ -45,7 +45,9 @@ class MetricLogger:
         else:
             self.reset_lists()
             with open(self.save_log, "w") as f:
-                f.write("Episode    Step    Epsilon    MeanReward    MeanLength    MeanLoss    MeanQValue\n")
+                f.write(
+                    "Episode    Step            Epsilon    MeanReward          MeanLength    MeanLoss    MeanQValue\n"
+                )
         self.init_episode()
 
     def reset_lists(self):
@@ -109,8 +111,8 @@ class MetricLogger:
 
         with open(self.save_log, "a") as f:
             f.write(
-                f"{episode:<11}{step:<15}{epsilon:<12.5f}"
-                f"{mean_ep_reward:<29.0f}{mean_ep_length:<16.0f}{mean_ep_loss:<15.0f}{mean_ep_q:<15.0f}\n"
+                f"{episode:<11}{step:<15}{epsilon:<11.5f}"
+                f"{mean_ep_reward:<20.0f}{mean_ep_length:<16.0f}{mean_ep_loss:<15.0f}{mean_ep_q:<15.0f}\n"
             )
         self.plot_metrics()
 
