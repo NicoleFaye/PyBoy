@@ -86,7 +86,6 @@ class MetricLogger:
         self.init_episode()
 
     def record(self, episode, epsilon, step):
-        print("shape: ", len(self.ep_rewards))
         mean_ep_reward = np.round(np.mean(self.ep_rewards[-100:]), 3)
         mean_ep_length = np.round(np.mean(self.ep_lengths[-100:]), 3)
         mean_ep_loss = np.round(np.mean(self.ep_avg_losses[-100:]), 3)
