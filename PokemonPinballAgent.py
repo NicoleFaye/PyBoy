@@ -134,7 +134,6 @@ class PokemonPinballAgent:
 
     def save(self):
         save_path = (self.save_dir / f"pokemon_pinball_net_{int(self.curr_step // self.save_every)}.chkpt")
-        print("saving current episode")
         torch.save(
             dict(
                 model=self.net.state_dict(),
