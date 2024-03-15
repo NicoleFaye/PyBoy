@@ -46,7 +46,7 @@ class MetricLogger:
             self.reset_lists()
             with open(self.save_log, "w") as f:
                 f.write(
-                    "Episode    Step            Epsilon    MeanReward          MeanLength    MeanLoss    MeanQValue\n"
+                    "Episode    Step           Epsilon    MeanReward          MeanLength      MeanLoss      MeanQValue\n"
                 )
         self.init_episode()
 
