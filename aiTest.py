@@ -104,3 +104,6 @@ try:
 except Exception as e:
     print(e)
 print("EOF REACHED??????")
+
+print("Stopping PyBoy...")
+pyboy.stop()
