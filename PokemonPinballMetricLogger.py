@@ -112,7 +112,7 @@ class MetricLogger:
         with open(self.save_log, "a") as f:
             f.write(
                 f"{episode:<11}{step:<15}{epsilon:<11.5f}"
-                f"{mean_ep_reward:<20.0f}{mean_ep_length:<16.0f}{mean_ep_loss:<15.0f}{mean_ep_q:<15.0f}\n"
+                f"{mean_ep_reward:<20.0f}{mean_ep_length:<16.0f}{mean_ep_loss:<15.0f}{mean_ep_q:<15.3f}\n"
             )
         self.plot_metrics()
 
