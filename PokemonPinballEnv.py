@@ -35,6 +35,7 @@ class PokemonPinballEnv(gym.Env):
         self._fitness = 0
         self._previous_fitness = 0
 
+        self.debug = debug
         if not debug:
             self.pyboy.set_emulation_speed(0)
 
@@ -70,7 +71,10 @@ class PokemonPinballEnv(gym.Env):
             self.pyboy.button("select")
             self.pyboy.button("b")
 
-        self.pyboy.tick()
+        if self.debug:
+            self.pyboy.tick()
+        else:
+            self.pyboy.tick(1, False)
 
         done = self.pyboy.game_wrapper.game_over
 
