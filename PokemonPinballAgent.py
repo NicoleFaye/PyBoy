@@ -144,8 +144,6 @@ class PokemonPinballAgent:
             save_path,
         )
         print(f"Pokémon Pinball Net saved to {save_path} at step {self.curr_step}")
-        if self.curr_episode % 20 == 0:
-            quit()
 
     def load(self, load_path):
         if load_path.is_file():
