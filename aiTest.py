@@ -59,51 +59,46 @@ else:
     logger = MetricLogger(save_dir)
     print("No existing checkpoints found. Created a new directory for this training session.")
 
-episodes = 40000
+episodes = 80000
 print("Starting from episode", current_episode)
-try:
-    while current_episode < episodes:
+while current_episode < episodes:
 
-        state = env.reset()
+    state = env.reset()
 
-        # Play the game!
-        while True:
+    # Play the game!
+    while True:
 
-            # Run agent on the state
-            action = pokemon_pinball_agent.act(state)
+        # Run agent on the state
+        action = pokemon_pinball_agent.act(state)
 
-            # Agent performs action
-            next_state, reward, done, truncated, info = env.step(action)
+        # Agent performs action
+        next_state, reward, done, truncated, info = env.step(action)
 
-            # Remember
-            pokemon_pinball_agent.cache(state, next_state, action, reward, done)
+        # Remember
+        pokemon_pinball_agent.cache(state, next_state, action, reward, done)
 
-            # Learn
-            q, loss = pokemon_pinball_agent.learn()
+        # Learn
+        q, loss = pokemon_pinball_agent.learn()
 
-            # Logging
-            logger.log_step(reward, loss, q)
+        # Logging
+        logger.log_step(reward, loss, q)
 
-            # Update state
-            state = next_state
+        # Update state
+        state = next_state
 
-            # Check if end of game
-            if done:
-                break
+        # Check if end of game
+        if done:
+            break
 
-        logger.log_episode()
+    logger.log_episode()
 
-        if (current_episode % 20 == 0) or (current_episode == episodes - 1):
-            logger.record(
-                episode=current_episode,
-                epsilon=pokemon_pinball_agent.exploration_rate,
-                step=pokemon_pinball_agent.curr_step
-            )
-        current_episode += 1
-        pokemon_pinball_agent.curr_episode = current_episode
-except Exception as e:
-    print(e)
-print("EOF REACHED??????")
-
+    if (current_episode % 20 == 0) or (current_episode == episodes - 1):
+        logger.record(
+            episode=current_episode,
+            epsilon=pokemon_pinball_agent.exploration_rate,
+            step=pokemon_pinball_agent.curr_step
+        )
+    current_episode += 1
+    pokemon_pinball_agent.curr_episode = current_episode
 print("Stopping PyBoy...")
 pyboy.stop()
