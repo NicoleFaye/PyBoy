@@ -27,10 +27,10 @@ def find_latest_checkpoint(save_dir):
     return None
 
 
-pyboy = PyBoy("pinball.gbc", game_wrapper=True, window_type="null")
+pyboy = PyBoy("pinball.gbc", game_wrapper=True) #, window_type="null")
 #pyboy = PyBoy("pinball.gbc",game_wrapper=False)
 
-env = PokemonPinballEnv(pyboy)
+env = PokemonPinballEnv(pyboy, debug=True)
 
 # wrappers
 env = SkipFrame(env, skip=4)
