@@ -38,3 +38,5 @@ while True:
     if i % 4 == 0:
         printout(pyboy)
     i += 1
+
+pyboy.stop()
