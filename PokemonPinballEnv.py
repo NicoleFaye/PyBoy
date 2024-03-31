@@ -23,13 +23,17 @@ class Actions(Enum):
 matrix_shape = (16, 20)
 game_area_observation_space = spaces.Box(low=0, high=255, shape=matrix_shape, dtype=np.uint8)
 
+observation_space = spaces.Dict({
+    "game_area": game_area_observation_space,
+    "ball_x": spaces.Box(low=-np.inf, high=np.inf, shape=(1, ), dtype=np.uint8),
+    "ball_y": spaces.Box(low=-np.inf, high=np.inf, shape=(1, ), dtype=np.uint8),
+})
+
 
 class PokemonPinballEnv(gym.Env):
-    def __init__(self, pyboy, debug=False):
+    def __init__(self, path="pinball.gbc", debug=False):
         super().__init__()
-        self.pyboy = pyboy
-        if self.pyboy is None:
-            raise ValueError("PyBoy instance is required")
+        self.pyboy = PyBoy(path, game_wrapper=True, window_type="sdl2" if debug else "null")
         assert self.pyboy.cartridge_title == "POKEPINBALLVPH"
 
         self._fitness = 0
@@ -40,7 +44,7 @@ class PokemonPinballEnv(gym.Env):
             self.pyboy.set_emulation_speed(0)
 
         self.action_space = spaces.Discrete(len(Actions))
-        self.observation_space = game_area_observation_space
+        self.observation_space = observation_space
 
         self.pyboy.game_wrapper.start_game()
 
@@ -103,7 +107,12 @@ class PokemonPinballEnv(gym.Env):
         self.pyboy.stop()
 
     def _get_obs(self):
-        return self.pyboy.game_area()
+        observation = {
+            "game_area": self.pyboy.game_area(),
+            "ball_x": self.pyboy.game_wrapper.ball_x,
+            "ball_y": self.pyboy.game_wrapper.ball_y,
+        }
+        return observation
 
     def _calculate_fitness(self):
         self._previous_fitness = self._fitness
