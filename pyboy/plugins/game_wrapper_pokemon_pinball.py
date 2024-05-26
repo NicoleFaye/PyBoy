@@ -5,6 +5,8 @@
 __pdoc__ = {
     "GameWrapperPokemonPinball.cartridge_title": False,
     "GameWrapperPokemonPinball.post_tick": False,
+    "GameWrapperPokemonPinball._set_stage": False,
+    "GameWrapperPokemonPinball.ball_size": False,
 }
 
 import logging
@@ -18,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 class Stage(Enum):
+    """
+    The stage values in the game.
+    """
     RED_TOP = 0
     RED_BOTTOM = 1
     BLUE_TOP = 4
@@ -30,6 +35,9 @@ class Stage(Enum):
 
 
 class Pokemon(Enum):
+    """
+    The Pokemon values in the game.
+    """
     BULBASAUR = 0
     IVYSAUR = 1
     VENUSAUR = 2
@@ -184,6 +192,9 @@ class Pokemon(Enum):
 
 
 class Maps(Enum):
+    """
+    The map values in the game.
+    """
     PALLET_TOWN = 0
     VIRIDIAN_CITY = 1
     VIRIDIAN_FOREST = 2
@@ -230,14 +241,14 @@ RedBonusStages = [Stage.DIGLETT, Stage.GENGAR, Stage.MEWTWO]
 
 BlueBonusStages = [Stage.MEOWTH, Stage.SEEL, Stage.MEWTWO]
 
-AllBonusStageValues = []
-for stage in RedBonusStages:
-    AllBonusStageValues.append(stage.value)
-for stage in BlueBonusStages:
-    AllBonusStageValues.append(stage.value)
+AllBonusStageValues = RedBonusStages + BlueBonusStages
 
 
 class GameWrapperPokemonPinball(PyBoyGameWrapper):
+    """
+    This class wraps Pokemon Pinball, and provides access to game info for AIs.
+    """
+
     cartridge_title = "POKEPINBALLVPH"
 
     def __init__(self, *args, **kwargs):
@@ -249,8 +260,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         """The lives remaining provided by the game"""
         self.game_over = False
         """The game over state"""
-        self.saver_active = False
-        """The ball saver state"""
         self.ball_type = BallType.POKEBALL.value
         """The current ball type"""
         self.multiplier = 1
@@ -258,19 +267,34 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.current_stage = 0
         """The current stage"""
         self.ball_size = 0
-        """The current ball size"""
         self.ball_saver_seconds_left = 0
         """The current ball saver seconds left"""
         self.pokedex = [False] * 151
-        """The pokedex state"""
         self._unlimited_saver = False
-        """The unlimited saver state"""
         self.ball_x = 0
+        """The x position of the ball"""
         self.ball_y = 0
+        """The y position of the ball"""
         self.ball_x_velocity = 0
+        """The x velocity of the ball"""
         self.ball_y_velocity = 0
+        """The y velocity of the ball"""
         self.special_mode = 0
+        """
+        The special mode state value
+
+
+        Example:
+        ```python
+        >>> from pyboy.plugins.game_wrapper_pokemon_pinball import SpecialMode
+        >>> pyboy = PyBoy(pokemon_pinball_rom)
+        >>> pyboy.game_wrapper.special_mode == SpecialMode.CATCH.value
+        True
+        ```
+        """
+
         self.special_mode_active = False
+        """The special mode active state"""
 
         ##########################
         # Fitness Related Values #
@@ -280,83 +304,112 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         # Evolution tracking #
         ######################
         self.evolution_failure_count = 0
+        """The number of times an evolution has failed"""
         self.evolution_success_count = 0
+        """The number of times an evolution has succeeded"""
 
         ########################
         # Bonus stage tracking #
         ########################
         self.diglett_stages_completed = 0
+        """The number of Diglett stages completed"""
         self.diglett_stages_visited = 0
+        """The number of Diglett stages visited"""
         self.gengar_stages_completed = 0
+        """The number of Gengar stages completed"""
         self.gengar_stages_visited = 0
+        """The number of Gengar stages visited"""
         self.meowth_stages_completed = 0
+        """The number of Meowth stages completed"""
         self.meowth_stages_visited = 0
+        """The number of Meowth stages visited"""
         self.mewtwo_stages_completed = 0
+        """The number of Mewtwo stages completed"""
         self.mewtwo_stages_visited = 0
+        """The number of Mewtwo stages visited"""
         self.seel_stages_completed = 0
+        """The number of Seel stages completed"""
         self.seel_stages_visited = 0
+        """The number of Seel stages visited"""
 
         ##########################
         # Pikachu Saver tracking #
         ##########################
         self.pikachu_saver_charge = 0 # range of 0-15
+        """The charge of the Pikachu saver, ranges from 0 to 15"""
         self.pikachu_saver_increments = 0
+        """The number of times the Pikachu saver charge has incremented"""
         self.pikachu_saver_used = 0
+        """The number of times the Pikachu saver has been used"""
 
         ################
         # Map tracking #
         ################
         self.current_map = 0
+        """The current map
+
+
+        Example:
+        ```python
+        >>> from pyboy.plugins.game_wrapper_pokemon_pinball import Maps
+        >>> pyboy = PyBoy(pokemon_pinball_rom)
+        >>> pyboy.game_wrapper.current_map == Maps.PALLET_TOWN.value
+        True
+        ```
+        """
         self.map_change_attempts = 0
+        """The number of times a map change has been attempted"""
         self.map_change_successes = 0
+        """The number of times a map change has been successful"""
 
         ###########################
         # Pokemon Caught Tracking #
         ###########################
         self.pokemon_caught_in_session = 0
+        """The number of pokemon caught in the current session"""
         self.pokemon_seen_in_session = 0
+        """The number of pokemon seen in the current session"""
 
         #########################
         # Ball upgrade Tracking #
         #########################
         self.great_ball_upgrades = 0
+        """The number of Great Ball upgrades obtained"""
         self.ultra_ball_upgrades = 0
+        """The number of Ultra Ball upgrades obtained"""
         self.master_ball_upgrades = 0
+        """The number of Master Ball upgrades obtained"""
 
         #######################
         # Extra Ball Tracking #
         #######################
         self.extra_balls_added = 0 # Does not include extra balls rewarded via roulette
+        """The number of extra balls added, not including those rewarded via roulette"""
 
         ##########################
         # Lost Ball During Saver #
         ##########################
         self.lost_ball_during_saver = 0
+        """The number of balls lost during a saver mode"""
 
         #################
         # Slot Tracking #
         #################
         self.roulette_slots_opened = 0
+        """The number of roulette slots opened"""
         self.roulette_slots_entered = 0
-
-        self._add_hooks()
+        """The number of roulette slots entered"""
 
         super().__init__(*args, game_area_section=(0, 0) + self.shape, game_area_follow_scxy=True, **kwargs)
+
+        if not self.enabled():
+            return
+
+        self._add_hooks()
 
     def _update_pokedex(self):
         for pokemon in Pokemon:
             self.pokedex[pokemon.value] = self.pyboy.memory[ADDR_POKEDEX + pokemon.value]
-
-    def reset_game(self, timer_div=None):
-        """
-        After calling `start_game`, use this method to reset the beginning of the game.
-
-        Kwargs:
-            timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
-        """
-        PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
 
     def has_pokemon(self, pokemon):
         """
@@ -388,7 +441,7 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         This method should be called before the game starts
 
         No ops out these asm lines:
-        	jr z, .pressedB
+            jr z, .pressedB
             ld a, [wSelectedFieldIndex]
             ld c, a
             ld b, $0
@@ -446,11 +499,10 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.pyboy.memory[ADDR_POKEMON_TO_CATCH] = pokemon.value
         self.pyboy.memory[ADDR_SPECIAL_MODE_ACTIVE] = 1
         self.pyboy.memory[ADDR_SPECIAL_MODE_STATE] = 0
-        self.pyboy.memory[0xd5c6] = 0
+        self.pyboy.memory[ADDR_D5C6] = 0
         self.pyboy.memory[ADDR_NUM_MON_HITS] = 0
         self.pyboy.memory[ADDR_NUM_CATCH_TILES_FLIPPED] = 0
-        for i in range(TILE_ILLUMINATION_BYTE_WIDTH):
-            self.pyboy.memory[ADDR_TILE_ILLUMINATION + i] = 0
+        self.pyboy.memory[ADDR_TILE_ILLUMINATION:ADDR_TILE_ILLUMINATION + TILE_ILLUMINATION_BYTE_WIDTH] = 0
         if not unlimited_time:
             self.pyboy.memory[ADDR_TIMER_SECONDS] = 0
             self.pyboy.memory[ADDR_TIMER_MINUTES] = 2
@@ -488,19 +540,19 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             def disable_timer(context):
                 context.memory[ADDR_TIMER_ACTIVE] = 0
 
-            bank = 4
-            offset = 0x4d64
+            bank = BANK_OFFSET_DISABLE_TIMER[0]
+            offset = BANK_OFFSET_DISABLE_TIMER[1]
             try:
                 self.pyboy.hook_register(bank, offset, disable_timer, self.pyboy)
-            except:
+            except ValueError:
                 pass #hook already exists
 
     def current_map_completed(self):
         """
         Determines if all Pokemon in the current map have been caught.
 
-        This function checks whether all Pokemon, both common and rare, in the current stage's map have been caught. 
-        It supports both Red and Blue stages. If any Pokemon in the map has not been caught, the function returns False. 
+        This function checks whether all Pokemon, both common and rare, in the current stage's map have been caught.
+        It supports both Red and Blue stages. If any Pokemon in the map has not been caught, the function returns False.
         If all Pokemon have been caught, it returns True.
 
         Returns:
@@ -535,52 +587,53 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         Returns:
         None
         """
-        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
         self._set_stage(stage)
 
         # Random tilemap I observed doesn't change until shortly before input is read
-        while True and self.tilemap_background[10, 10] != 269:
-            self.pyboy.tick()
+        while self.tilemap_background[10, 10] != 269:
+            self.pyboy.tick(1, False)
 
         # tick needed count to get to the point where input is read
-        for i in range(18):
-            self.pyboy.tick()
+        self.pyboy.tick(18, False)
 
         # start game
         self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-        self.pyboy.tick()
+        self.pyboy.tick(1, False)
         self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
         # tick count needed to get to the next point where input is read
-        for i in range(95):
-            self.pyboy.tick()
+        self.pyboy.tick(95, False)
 
         self.pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
-        self.pyboy.tick()
+        self.pyboy.tick(1, False)
         self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
-        self.pyboy.tick()
+        self.pyboy.tick(1, False)
 
         ticks_until_visible = 74
-        for i in range(ticks_until_visible):
-            self.pyboy.tick()
+        self.pyboy.tick(ticks_until_visible, False)
 
         ticks_until_input_ready = 4
-        for i in range(ticks_until_input_ready):
-            self.pyboy.tick()
+        self.pyboy.tick(ticks_until_input_ready, False)
 
         #needs to be called after normal initializations, otherwise it will be overwritten
         self._init_bonus_stage(stage)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
+        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
-        self.game_has_started = True
+    def reset_game(self, timer_div=None):
+        """
+        After calling `start_game`, use this method to reset the beginning of the game.
+
+        Kwargs:
+            timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
+        """
+        PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
 
     def get_unique_pokemon_caught(self):
         """
         Get the number of unique pokemon caught in the current session based off the in game pokedex
         """
-        return len([pokemon for pokemon in self.pokedex if pokemon == 2])
+        return self.pokedex.count(2)
 
     def post_tick(self):
         self._tile_cache_invalid = True
@@ -611,10 +664,11 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
         self.ball_y_velocity = self.pyboy.memory[ADDR_BALL_Y_VELOCITY]
 
         self.pikachu_saver_charge = self.pyboy.memory[ADDR_PIKACHU_SAVER_CHARGE]
-        self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
 
         if self._unlimited_saver:
             self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT] = 30
+
+        self.ball_saver_seconds_left = self.pyboy.memory[ADDR_BALL_SAVER_SECONDS_LEFT]
 
         self._update_pokedex()
 
@@ -636,7 +690,6 @@ class GameWrapperPokemonPinball(PyBoyGameWrapper):
             "Ball saver seconds left: " + str(self.ball_saver_seconds_left) + "\n" +
             "Pokemon caught in session: " + str(self.pokemon_caught_in_session) + "\n" +
             "Pokemon seen in session: " + str(self.pokemon_seen_in_session) + "\n" +
-            "Ball saver active: " + str(self.saver_active) + "\n" +
             "Ball lost during saver: " + str(self.lost_ball_during_saver) + "\n" +
             "Special mode active: " + str(self.special_mode_active) + "\n" +
             "Evolution failure count: " + str(self.evolution_failure_count) + "\n" +
@@ -902,9 +955,11 @@ ADDR_TIMER_FRAMES = 0xd57c
 ADDR_TIMER_RAN_OUT = 0xd57e # 1 = ran out
 ADDR_TIMER_PAUSED = 0xd57f # nz = paused
 ADDR_TIMER_ACTIVE = 0xd57d # 1 = active
-ADDR_D580 = 0xd580
+ADDR_D580 = 0xd580 # Something to do with the timer, needs to be initialized.
 
 ADDR_CURRENT_MAP = 0xd54a
+
+ADDR_D5C6 = 0xd5c6 # Something to do with the catch mode, needs to be initialized.
 
 ADDR_POKEDEX = 0xd962
 
@@ -982,6 +1037,7 @@ BANK_OFFSET_SLOT_REWARD_EXTRA_BALL = (0x3, 0x6fa7)
 BANK_OFFSET_OPENED_SLOT_BY_GETTING_4_CAVE_LIGHTS_BLUE = (0x7, 0x667e)
 BANK_OFFSET_OPENED_SLOT_BY_GETTING_4_CAVE_LIGHTS_RED = (0x5, 0x5284)
 BANK_OFFSET_SLOT_REWARD_ROULETTE = (0x3, 0x6d8e)
+BANK_OFFSET_DISABLE_TIMER = (4, 0x4d64)
 BANK_OFFSET_BALL_SAVED_RED = (3, 0x5d7f)
 BANK_OFFSET_BALL_SAVED_BLUE = (3, 0x5e58)
 
@@ -1094,6 +1150,7 @@ RedStageMapWildMons = {
         Pokemon.DITTO: 0.1875
     }
 }
+"""The wild Pokemon that can be found in each map in the Red stage, along with their encounter rates"""
 
 RedStageMapWildMonsRare = {
     Maps.PALLET_TOWN: {
@@ -1205,6 +1262,7 @@ RedStageMapWildMonsRare = {
         Pokemon.MEW: 0.0625
     }
 }
+"""The rare wild Pokemon that can be found in each map in the Red stage, along with their encounter rates"""
 
 BlueStageMapWildMons = {
     Maps.VIRIDIAN_CITY: {
@@ -1318,6 +1376,7 @@ BlueStageMapWildMons = {
         Pokemon.DITTO: 0.1875
     }
 }
+"""The wild Pokemon that can be found in each map in the Blue stage, along with their encounter rates"""
 
 BlueStageMapWildMonsRare = {
     Maps.VIRIDIAN_CITY: {
@@ -1435,3 +1494,4 @@ BlueStageMapWildMonsRare = {
         Pokemon.MEW: 0.0625
     },
 }
+"""The rare wild Pokemon that can be found in each map in the Blue stage, along with their encounter rates"""

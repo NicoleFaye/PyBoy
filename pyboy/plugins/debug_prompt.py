@@ -14,16 +14,7 @@ logger = pyboy.logging.get_logger(__name__)
 
 
 class DebugPrompt(PyBoyPlugin):
-    argv = [
-        ("--breakpoints", {
-            "type": str,
-            "help": "Add breakpoints on start-up (internal use)"
-        }),
-        ("--symbols-file", {
-            "type": str,
-            "help": "Path for a symbols file for ROM (internal use)"
-        }),
-    ]
+    argv = [("--breakpoints", {"type": str, "help": "Add breakpoints on start-up (internal use)"})]
 
     def __init__(self, pyboy, mb, pyboy_argv):
         super().__init__(pyboy, mb, pyboy_argv)
@@ -98,7 +89,7 @@ class DebugPrompt(PyBoyPlugin):
                     for addr, label in addresses.items():
                         print(f"{bank:02X}:{addr:04X} {label}")
             elif cmd == "bl":
-                for bank, addr in self.mb.breakpoints_list:
+                for bank, addr in self.mb.breakpoints.keys():
                     print(f"{bank:02X}:{addr:04X} {self.rom_symbols.get(bank, {}).get(addr, '')}")
             elif cmd == "b" or cmd.startswith("b "):
                 if cmd.startswith("b "):

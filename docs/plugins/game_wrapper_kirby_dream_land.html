@@ -90,9 +90,8 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         instantly.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
-        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
         # Boot screen
         while True:
@@ -115,21 +114,16 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         # Wait for transition to finish (exit level intro screen, enter game)
         self.pyboy.tick(60, False)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
-
-        self._set_timer_div(timer_div)
+        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
     def reset_game(self, timer_div=None):
         &#34;&#34;&#34;
         After calling `start_game`, you can call this method at any time to reset the game.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
         PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
 
     def game_area(self):
         &#34;&#34;&#34;
@@ -245,9 +239,8 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         instantly.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
-        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
         # Boot screen
         while True:
@@ -270,21 +263,16 @@ class GameWrapperKirbyDreamLand(PyBoyGameWrapper):
         # Wait for transition to finish (exit level intro screen, enter game)
         self.pyboy.tick(60, False)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
-
-        self._set_timer_div(timer_div)
+        PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
     def reset_game(self, timer_div=None):
         &#34;&#34;&#34;
         After calling `start_game`, you can call this method at any time to reset the game.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
         PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
 
     def game_area(self):
         &#34;&#34;&#34;
@@ -363,7 +351,9 @@ first playable state.</p>
 <p>The state of the emulator is saved, and using <code>reset_game</code>, you can get back to this point of the game
 instantly.</p>
 <h2 id="kwargs">Kwargs</h2>
-<p>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</p></section>
+<ul>
+<li>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</li>
+</ul></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -377,9 +367,8 @@ instantly.</p>
     instantly.
 
     Kwargs:
-        timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+        * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
     &#34;&#34;&#34;
-    PyBoyGameWrapper.start_game(self, timer_div=timer_div)
 
     # Boot screen
     while True:
@@ -402,10 +391,7 @@ instantly.</p>
     # Wait for transition to finish (exit level intro screen, enter game)
     self.pyboy.tick(60, False)
 
-    self.saved_state.seek(0)
-    self.pyboy.save_state(self.saved_state)
-
-    self._set_timer_div(timer_div)</code></pre>
+    PyBoyGameWrapper.start_game(self, timer_div=timer_div)</code></pre>
 </details>
 </dd>
 <dt id="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.reset_game"><code class="name flex">
@@ -414,7 +400,9 @@ instantly.</p>
 <dd>
 <section class="desc"><p>After calling <code>start_game</code>, you can call this method at any time to reset the game.</p>
 <h2 id="kwargs">Kwargs</h2>
-<p>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</p></section>
+<ul>
+<li>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</li>
+</ul></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -424,11 +412,9 @@ instantly.</p>
     After calling `start_game`, you can call this method at any time to reset the game.
 
     Kwargs:
-        timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+        * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
     &#34;&#34;&#34;
-    PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-    self._set_timer_div(timer_div)</code></pre>
+    PyBoyGameWrapper.reset_game(self, timer_div=timer_div)</code></pre>
 </details>
 </dd>
 <dt id="pyboy.plugins.game_wrapper_kirby_dream_land.GameWrapperKirbyDreamLand.game_area"><code class="name flex">

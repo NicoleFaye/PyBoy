@@ -35,7 +35,7 @@ cdef class PyBoy:
     cdef Motherboard mb
     cdef readonly PluginManager _plugin_manager
     cdef readonly uint64_t frame_count
-    cdef readonly str gamerom_file
+    cdef readonly str gamerom
     cdef readonly bint paused
 
     cdef double avg_pre
@@ -59,7 +59,6 @@ cdef class PyBoy:
     cdef bint limit_emulationspeed
     cdef int emulationspeed, target_emulationspeed, save_target_emulationspeed
     cdef bint record_input
-    cdef bint disable_input
     cdef str record_input_file
     cdef list recorded_input
     cdef list external_input
@@ -81,7 +80,8 @@ cdef class PyBoy:
 
     cdef dict _hooks
     cdef object symbols_file
-    cdef dict rom_symbols
+    cdef public dict rom_symbols
+    cdef public dict rom_symbols_inverse
     cpdef bint _handle_hooks(self)
     cpdef int hook_register(self, uint16_t, uint16_t, object, object) except -1
     cpdef int hook_deregister(self, uint16_t, uint16_t) except -1

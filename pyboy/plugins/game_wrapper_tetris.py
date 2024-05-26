@@ -104,10 +104,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
         instantly.
 
         Kwargs:
-            timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
         """
-        # We don't supply the timer_div arg here, as it won't have the desired effect
-        PyBoyGameWrapper.start_game(self)
 
         # Boot screen
         while True:
@@ -120,9 +118,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
             self.pyboy.button("start")
             self.pyboy.tick(7, False)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
-
+        # We don't supply the timer_div arg here, as it won't have the desired effect
+        PyBoyGameWrapper.start_game(self)
         self.reset_game(timer_div=timer_div)
 
     def reset_game(self, timer_div=None):
@@ -130,11 +127,9 @@ class GameWrapperTetris(PyBoyGameWrapper):
         After calling `start_game`, you can call this method at any time to reset the game.
 
         Kwargs:
-            timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
         """
         PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
         self.pyboy.button("start")
         self.pyboy.tick(7, False)
 
@@ -187,6 +182,7 @@ class GameWrapperTetris(PyBoyGameWrapper):
         -------
         shape:
             `str` of which Tetromino will drop:
+
             * `"L"`: L-shape
             * `"J"`: reverse L-shape
             * `"I"`: I-shape

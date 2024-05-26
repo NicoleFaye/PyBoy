@@ -96,7 +96,6 @@ class PyBoyGameWrapper(PyBoyPlugin):
     """
 
     cartridge_title = None
-    argv = [("--game-wrapper", {"action": "store_true", "help": "Enable game wrapper for the current game"})]
 
     mapping_one_to_one = np.arange(384 * 2, dtype=np.uint8)
     """
@@ -162,11 +161,10 @@ class PyBoyGameWrapper(PyBoyPlugin):
             timer_div (int): Replace timer's DIV register with this value. Use `None` to randomize.
         """
 
-        if not self.pyboy.frame_count == 0:
-            logger.warning("Calling start_game from an already running game. This might not work.")
         self.game_has_started = True
         self.saved_state.seek(0)
         self.pyboy.save_state(self.saved_state)
+        self._set_timer_div(timer_div)
 
     def reset_game(self, timer_div=None):
         """
@@ -179,6 +177,7 @@ class PyBoyGameWrapper(PyBoyPlugin):
         if self.game_has_started:
             self.saved_state.seek(0)
             self.pyboy.load_state(self.saved_state)
+            self._set_timer_div(timer_div)
             self.post_tick()
         else:
             logger.error("Tried to reset game, but it hasn't been started yet!")

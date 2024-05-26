@@ -17,7 +17,8 @@ from pyboy.api.memory_scanner import MemoryScanner
 from pyboy.api.screen import Screen
 from pyboy.api.tilemap import TileMap
 from pyboy.logging import get_logger
-from pyboy.plugins.manager import PluginManager
+from pyboy.logging import log_level as _log_level
+from pyboy.plugins.manager import PluginManager, parser_arguments
 from pyboy.utils import IntIOWrapper, WindowEvent
 
 from .api import Sprite, Tile, constants
@@ -32,21 +33,24 @@ defaults = {
     "cgb_color_palette": ((0xFFFFFF, 0x7BFF31, 0x0063C5, 0x000000), (0xFFFFFF, 0xFF8484, 0x943A3A, 0x000000),
                           (0xFFFFFF, 0xFF8484, 0x943A3A, 0x000000)),
     "scale": 3,
-    "window_type": "SDL2",
+    "window": "SDL2",
+    "log_level": "ERROR",
 }
 
 
 class PyBoy:
     def __init__(
         self,
-        gamerom_file,
+        gamerom,
         *,
-        symbols_file=None,
-        bootrom_file=None,
+        window=defaults["window"],
+        scale=defaults["scale"],
+        symbols=None,
+        bootrom=None,
         sound=False,
         sound_emulated=False,
         cgb=None,
-        randomize=False,
+        log_level=defaults["log_level"],
         **kwargs
     ):
         """
@@ -58,7 +62,7 @@ class PyBoy:
         GitHub, if other methods are needed for your projects. Take a look at the files in `examples/` for a crude
         "bots", which interact with the game.
 
-        Only the `gamerom_file` argument is required.
+        Only the `gamerom` argument is required.
 
         Example:
         ```python
@@ -71,19 +75,18 @@ class PyBoy:
         ```
 
         Args:
-            gamerom_file (str): Filepath to a game-ROM for Game Boy or Game Boy Color.
+            gamerom (str): Filepath to a game-ROM for Game Boy or Game Boy Color.
 
         Kwargs:
-            * symbols_file (str): Filepath to a .sym file to use. If unsure, specify `None`.
-
-            * bootrom_file (str): Filepath to a boot-ROM to use. If unsure, specify `None`.
-
-            * sound (bool): Enable sound emulation and output
-
+            * window (str): "SDL2", "OpenGL", or "null"
+            * scale (int): Window scale factor. Doesn't apply to API.
+            * symbols (str): Filepath to a .sym file to use. If unsure, specify `None`.
+            * bootrom (str): Filepath to a boot-ROM to use. If unsure, specify `None`.
+            * sound (bool): Enable sound emulation and output.
             * sound_emulated (bool): Enable sound emulation without any output. Used for compatibility.
-
+            * cgb (bool): Forcing Game Boy Color mode.
+            * log_level (str): "CRITICAL", "ERROR", "WARNING", "INFO" or "DEBUG"
             * color_palette (tuple): Specify the color palette to use for rendering.
-
             * cgb_color_palette (list of tuple): Specify the color palette to use for rendering in CGB-mode for non-color games.
 
         Other keyword arguments may exist for plugins that are not listed here. They can be viewed by running `pyboy --help` in the terminal.
@@ -91,24 +94,49 @@ class PyBoy:
 
         self.initialized = False
 
+        if "bootrom_file" in kwargs:
+            logger.error(
+                "Deprecated use of 'bootrom_file'. Use 'bootrom' keyword argument instead. https://github.com/Baekalfen/PyBoy/wiki/Migrating-from-v1.x.x-to-v2.0.0"
+            )
+            bootrom = kwargs.pop("bootrom_file")
+
+        if "window_type" in kwargs:
+            logger.error(
+                "Deprecated use of 'window_type'. Use 'window' keyword argument instead. https://github.com/Baekalfen/PyBoy/wiki/Migrating-from-v1.x.x-to-v2.0.0"
+            )
+            window = kwargs.pop("window_type")
+
+        if window not in ["SDL2", "OpenGL", "null", "headless", "dummy"]:
+            raise KeyError(f'Unknown window type: {window}. Use "SDL2", "OpenGL", or "null"')
+
+        kwargs["window"] = window
+        kwargs["scale"] = scale
+        randomize = kwargs.pop("randomize", False) # Undocumented feature
+
         for k, v in defaults.items():
             if k not in kwargs:
                 kwargs[k] = kwargs.get(k, defaults[k])
 
-        if not os.path.isfile(gamerom_file):
-            raise FileNotFoundError(f"ROM file {gamerom_file} was not found!")
-        self.gamerom_file = gamerom_file
+        _log_level(log_level)
+
+        if gamerom is None:
+            raise FileNotFoundError(f"None is not a ROM file!")
+
+        if not os.path.isfile(gamerom):
+            raise FileNotFoundError(f"ROM file {gamerom} was not found!")
+        self.gamerom = gamerom
 
         self.rom_symbols = {}
-        if symbols_file is not None:
-            if not os.path.isfile(symbols_file):
-                raise FileNotFoundError(f"Symbols file {symbols_file} was not found!")
-        self.symbols_file = symbols_file
+        self.rom_symbols_inverse = {}
+        if symbols is not None:
+            if not os.path.isfile(symbols):
+                raise FileNotFoundError(f"Symbols file {symbols} was not found!")
+        self.symbols_file = symbols
         self._load_symbols()
 
         self.mb = Motherboard(
-            gamerom_file,
-            bootrom_file or kwargs.get("bootrom"), # Our current way to provide cli arguments is broken
+            gamerom,
+            bootrom,
             kwargs["color_palette"],
             kwargs["cgb_color_palette"],
             sound,
@@ -116,6 +144,18 @@ class PyBoy:
             cgb,
             randomize=randomize,
         )
+
+        # Validate all kwargs
+        plugin_manager_keywords = []
+        for x in parser_arguments():
+            if not x:
+                continue
+            plugin_manager_keywords.extend(z.strip("-").replace("-", "_") for y in x for z in y[:-1])
+
+        for k, v in kwargs.items():
+            if k not in defaults and k not in plugin_manager_keywords:
+                logger.error("Unknown keyword argument: %s", k)
+                raise KeyError(f"Unknown keyword argument: {k}")
 
         # Performance measures
         self.avg_pre = 0
@@ -314,9 +354,10 @@ class PyBoy:
                 self.mb.breakpoint_reinject()
 
                 # NOTE: PC has not been incremented when hitting breakpoint!
-                breakpoint_index = self.mb.breakpoint_reached()
-                if breakpoint_index != -1:
-                    self.mb.breakpoint_remove(breakpoint_index)
+                breakpoint_meta = self.mb.breakpoint_reached()
+                if breakpoint_meta != (-1, -1, -1):
+                    bank, addr, _ = breakpoint_meta
+                    self.mb.breakpoint_remove(bank, addr)
                     self.mb.breakpoint_singlestep_latch = 0
 
                     if not self._handle_hooks():
@@ -407,10 +448,10 @@ class PyBoy:
                 self.target_emulationspeed = int(bool(self.target_emulationspeed) ^ True)
                 logger.debug("Speed limit: %d", self.target_emulationspeed)
             elif event == WindowEvent.STATE_SAVE:
-                with open(self.gamerom_file + ".state", "wb") as f:
+                with open(self.gamerom + ".state", "wb") as f:
                     self.mb.save_state(IntIOWrapper(f))
             elif event == WindowEvent.STATE_LOAD:
-                state_path = self.gamerom_file + ".state"
+                state_path = self.gamerom + ".state"
                 if not os.path.isfile(state_path):
                     logger.error("State file not found: %s", state_path)
                     continue
@@ -452,7 +493,7 @@ class PyBoy:
     def _post_tick(self):
         # Fix buggy PIL. They will copy our image buffer and destroy the
         # reference on some user operations like .save().
-        if not self.screen.image.readonly:
+        if self.screen.image and not self.screen.image.readonly:
             self.screen._set_image()
 
         if self.frame_count % 60 == 0:
@@ -542,28 +583,28 @@ class PyBoy:
         input = input.lower()
         if input == "left":
             self.send_input(WindowEvent.PRESS_ARROW_LEFT)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_ARROW_LEFT))
+            self.send_input(WindowEvent.RELEASE_ARROW_LEFT, delay)
         elif input == "right":
             self.send_input(WindowEvent.PRESS_ARROW_RIGHT)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_ARROW_RIGHT))
+            self.send_input(WindowEvent.RELEASE_ARROW_RIGHT, delay)
         elif input == "up":
             self.send_input(WindowEvent.PRESS_ARROW_UP)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_ARROW_UP))
+            self.send_input(WindowEvent.RELEASE_ARROW_UP, delay)
         elif input == "down":
             self.send_input(WindowEvent.PRESS_ARROW_DOWN)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_ARROW_DOWN))
+            self.send_input(WindowEvent.RELEASE_ARROW_DOWN, delay)
         elif input == "a":
             self.send_input(WindowEvent.PRESS_BUTTON_A)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_BUTTON_A))
+            self.send_input(WindowEvent.RELEASE_BUTTON_A, delay)
         elif input == "b":
             self.send_input(WindowEvent.PRESS_BUTTON_B)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_BUTTON_B))
+            self.send_input(WindowEvent.RELEASE_BUTTON_B, delay)
         elif input == "start":
             self.send_input(WindowEvent.PRESS_BUTTON_START)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_BUTTON_START))
+            self.send_input(WindowEvent.RELEASE_BUTTON_START, delay)
         elif input == "select":
             self.send_input(WindowEvent.PRESS_BUTTON_SELECT)
-            heapq.heappush(self.queued_input, (self.frame_count + delay, WindowEvent.RELEASE_BUTTON_SELECT))
+            self.send_input(WindowEvent.RELEASE_BUTTON_SELECT, delay)
         else:
             raise Exception("Unrecognized input:", input)
 
@@ -652,7 +693,7 @@ class PyBoy:
         else:
             raise Exception("Unrecognized input")
 
-    def send_input(self, event):
+    def send_input(self, event, delay=0):
         """
         Send a single input to control the emulator. This is both Game Boy buttons and emulator controls. See
         `pyboy.utils.WindowEvent` for which events to send.
@@ -670,13 +711,31 @@ class PyBoy:
         >>> pyboy.send_input(WindowEvent.RELEASE_BUTTON_A) # Release button 'a' on next call to `PyBoy.tick()`
         >>> pyboy.tick() # Button 'a' released
         True
+        ```
 
+        And even simpler with delay:
+        ```python
+        >>> from pyboy.utils import WindowEvent
+        >>> pyboy.send_input(WindowEvent.PRESS_BUTTON_A) # Press button 'a' and keep pressed after `PyBoy.tick()`
+        >>> pyboy.send_input(WindowEvent.RELEASE_BUTTON_A, 2) # Release button 'a' on third call to `PyBoy.tick()`
+        >>> pyboy.tick() # Button 'a' pressed
+        True
+        >>> pyboy.tick() # Button 'a' still pressed
+        True
+        >>> pyboy.tick() # Button 'a' released
+        True
         ```
 
         Args:
             event (pyboy.WindowEvent): The event to send
+            delay (int): 0 for immediately, number of frames to delay the input
         """
-        self.events.append(WindowEvent(event))
+
+        if delay:
+            assert delay > 0, "Only positive integers allowed"
+            heapq.heappush(self.queued_input, (self.frame_count + delay, event))
+        else:
+            self.events.append(WindowEvent(event))
 
     def save_state(self, file_like_object):
         """
@@ -925,7 +984,7 @@ class PyBoy:
         return self.mb.cpu.is_stuck
 
     def _load_symbols(self):
-        gamerom_file_no_ext, rom_ext = os.path.splitext(self.gamerom_file)
+        gamerom_file_no_ext, rom_ext = os.path.splitext(self.gamerom)
         for sym_path in [self.symbols_file, gamerom_file_no_ext + ".sym", gamerom_file_no_ext + rom_ext + ".sym"]:
             if sym_path and os.path.isfile(sym_path):
                 logger.info("Loading symbol file: %s", sym_path)
@@ -949,17 +1008,20 @@ class PyBoy:
                             if not bank in self.rom_symbols:
                                 self.rom_symbols[bank] = {}
 
-                            self.rom_symbols[bank][addr] = sym_label
+                            if not addr in self.rom_symbols[bank]:
+                                self.rom_symbols[bank][addr] = []
+
+                            self.rom_symbols[bank][addr].append(sym_label)
+                            self.rom_symbols_inverse[sym_label] = (bank, addr)
                         except ValueError as ex:
                             logger.warning("Skipping .sym line: %s", line.strip())
         return self.rom_symbols
 
     def _lookup_symbol(self, symbol):
-        for bank, addresses in self.rom_symbols.items():
-            for addr, label in addresses.items():
-                if label == symbol:
-                    return bank, addr
-        raise ValueError("Symbol not found: %s" % symbol)
+        bank_addr = self.rom_symbols_inverse.get(symbol)
+        if bank_addr is None:
+            raise ValueError("Symbol not found: %s" % symbol)
+        return bank_addr
 
     def symbol_lookup(self, symbol):
         """
@@ -971,7 +1033,10 @@ class PyBoy:
 
         Example:
         ```python
-        >>> # Continued example above
+        >>> # Directly
+        >>> pyboy.memory[pyboy.symbol_lookup("Tileset")]
+        0
+        >>> # By bank and address
         >>> bank, addr = pyboy.symbol_lookup("Tileset")
         >>> pyboy.memory[bank, addr]
         0
@@ -1007,7 +1072,7 @@ class PyBoy:
 
         If a symbol file is loaded, this function can also automatically resolve a bank and address from a symbol. To
         enable this, you'll need to place a `.sym` file next to your ROM, or provide it using:
-        `PyBoy(..., symbols_file="game_rom.gb.sym")`.
+        `PyBoy(..., symbols="game_rom.gb.sym")`.
 
         Then provide `None` for `bank` and the symbol for `addr` to trigger the automatic lookup.
 
@@ -1020,6 +1085,12 @@ class PyBoy:
         True
 
         ```
+
+        **NOTE**:
+
+        Don't register hooks to something that isn't executable (graphics data etc.). This will cause your game to show
+        weird behavior or crash. Hooks are installed by replacing the instruction at the bank and address with a special
+        opcode (`0xDB`). If the address is read by the game instead of executed as code, this value will be read instead.
 
         Args:
             bank (int or None): ROM or RAM bank (None for symbol lookup)
@@ -1035,6 +1106,7 @@ class PyBoy:
             raise ValueError("Hook already registered for this bank and address.")
         self.mb.breakpoint_add(bank, addr)
         bank_addr_opcode = (bank & 0xFF) << 24 | (addr & 0xFFFF) << 8 | (opcode & 0xFF)
+        logger.debug("Adding hook for opcode %08x", bank_addr_opcode)
         self._hooks[bank_addr_opcode] = (callback, context)
 
     def hook_deregister(self, bank, addr):
@@ -1067,12 +1139,12 @@ class PyBoy:
         if bank is None and isinstance(addr, str):
             bank, addr = self._lookup_symbol(addr)
 
-        index = self.mb.breakpoint_find(bank, addr)
-        if index == -1:
+        breakpoint_meta = self.mb.breakpoint_find(bank, addr)
+        if not breakpoint_meta:
             raise ValueError("Breakpoint not found for bank and addr")
+        _, _, opcode = breakpoint_meta
 
-        _, _, opcode = self.mb.breakpoints_list[index]
-        self.mb.breakpoint_remove(index)
+        self.mb.breakpoint_remove(bank, addr)
         bank_addr_opcode = (bank & 0xFF) << 24 | (addr & 0xFFFF) << 8 | (opcode & 0xFF)
         self._hooks.pop(bank_addr_opcode)
 
@@ -1342,7 +1414,7 @@ class PyBoyMemoryView:
                 start -= 0x8000
                 stop -= 0x8000
                 # CGB VRAM Banks
-                assert self.mb.cgb, "Selecting bank of VRAM is only supported for CGB mode"
+                assert self.mb.cgb or (bank == 0), "Selecting bank of VRAM is only supported for CGB mode"
                 assert stop < 0x2000, "Out of bounds for reading VRAM bank"
                 assert bank <= 1, "VRAM Bank out of range"
 
@@ -1382,7 +1454,7 @@ class PyBoyMemoryView:
                     start -= 0x1000
                     stop -= 0x1000
                 # CGB VRAM banks
-                assert self.mb.cgb, "Selecting bank of WRAM is only supported for CGB mode"
+                assert self.mb.cgb or (bank == 0), "Selecting bank of WRAM is only supported for CGB mode"
                 assert stop < 0x1000, "Out of bounds for reading VRAM bank"
                 assert bank <= 7, "WRAM Bank out of range"
                 if not is_single:
@@ -1480,7 +1552,7 @@ class PyBoyMemoryView:
                 start -= 0x8000
                 stop -= 0x8000
                 # CGB VRAM Banks
-                assert self.mb.cgb, "Selecting bank of VRAM is only supported for CGB mode"
+                assert self.mb.cgb or (bank == 0), "Selecting bank of VRAM is only supported for CGB mode"
                 assert stop < 0x2000, "Out of bounds for reading VRAM bank"
                 assert bank <= 1, "VRAM Bank out of range"
 
@@ -1535,7 +1607,7 @@ class PyBoyMemoryView:
                     start -= 0x1000
                     stop -= 0x1000
                 # CGB VRAM banks
-                assert self.mb.cgb, "Selecting bank of WRAM is only supported for CGB mode"
+                assert self.mb.cgb or (bank == 0), "Selecting bank of WRAM is only supported for CGB mode"
                 assert stop < 0x1000, "Out of bounds for reading VRAM bank"
                 assert bank <= 7, "WRAM Bank out of range"
                 if not is_single:

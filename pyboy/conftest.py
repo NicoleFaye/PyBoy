@@ -107,6 +107,11 @@ def supermarioland_rom(secrets):
     return locate_sha256(b"470d6c45c9bcf7f0397d00c1ae6de727c63dd471049c8eedbefdc540ceea80b4")
 
 
+@pytest.fixture(scope="session")
+def pokemon_pinball_rom(secrets):
+    return locate_sha256(b"7672001d4710272009df6a41e3cbada65decd56e0eb2f185cb3d59c08d33ea0e")
+
+
 tetris_game_area = np.array([
     [47, 47, 47, 47, 47, 47, 47, 47, 47, 47],
     [47, 47, 47, 47, 47, 47, 47, 47, 47, 47],
@@ -131,15 +136,15 @@ tetris_game_area = np.array([
 
 
 @pytest.fixture(autouse=True)
-def doctest_fixtures(doctest_namespace, default_rom, default_rom_cgb, supermarioland_rom):
-    pyboy = PyBoy(default_rom, window_type="null", symbols_file="extras/default_rom/default_rom.sym")
-    pyboy_cgb = PyBoy(default_rom_cgb, window_type="null", symbols_file="extras/default_rom/default_rom_cgb.sym")
+def doctest_fixtures(doctest_namespace, default_rom, default_rom_cgb, supermarioland_rom, pokemon_pinball_rom):
+    pyboy = PyBoy(default_rom, window="null", symbols="extras/default_rom/default_rom.sym")
+    pyboy_cgb = PyBoy(default_rom_cgb, window="null", symbols="extras/default_rom/default_rom_cgb.sym")
 
     def mock_PyBoy(filename, *args, **kwargs):
         if not os.path.isfile(filename):
             filename = default_rom
-        kwargs.pop("window_type", None)
-        return PyBoy(filename, *args, window_type="null", **kwargs)
+        kwargs.pop("window", None)
+        return PyBoy(filename, *args, window="null", **kwargs)
 
     # We mock get_sprite_by_tile_identifier as default_rom doesn't use sprites
     with mock.patch("pyboy.PyBoy.get_sprite_by_tile_identifier", return_value=[[0, 2, 4], []]), \
@@ -156,6 +161,7 @@ def doctest_fixtures(doctest_namespace, default_rom, default_rom_cgb, supermario
         doctest_namespace["PyBoy"] = mock_PyBoy
         doctest_namespace["newline"] = "\n"
         doctest_namespace["supermarioland_rom"] = supermarioland_rom
+        doctest_namespace["pokemon_pinball_rom"] = pokemon_pinball_rom
 
         yield None
 

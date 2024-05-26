@@ -131,10 +131,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
         instantly.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
-        # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
-        PyBoyGameWrapper.start_game(self)
 
         # Boot screen
         while True:
@@ -147,9 +145,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
             self.pyboy.button(&#34;start&#34;)
             self.pyboy.tick(7, False)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
-
+        # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
+        PyBoyGameWrapper.start_game(self)
         self.reset_game(timer_div=timer_div)
 
     def reset_game(self, timer_div=None):
@@ -157,11 +154,9 @@ class GameWrapperTetris(PyBoyGameWrapper):
         After calling `start_game`, you can call this method at any time to reset the game.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
         PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
         self.pyboy.button(&#34;start&#34;)
         self.pyboy.tick(7, False)
 
@@ -214,6 +209,7 @@ class GameWrapperTetris(PyBoyGameWrapper):
         -------
         shape:
             `str` of which Tetromino will drop:
+
             * `&#34;L&#34;`: L-shape
             * `&#34;J&#34;`: reverse L-shape
             * `&#34;I&#34;`: I-shape
@@ -368,10 +364,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
         instantly.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
-        # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
-        PyBoyGameWrapper.start_game(self)
 
         # Boot screen
         while True:
@@ -384,9 +378,8 @@ class GameWrapperTetris(PyBoyGameWrapper):
             self.pyboy.button(&#34;start&#34;)
             self.pyboy.tick(7, False)
 
-        self.saved_state.seek(0)
-        self.pyboy.save_state(self.saved_state)
-
+        # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
+        PyBoyGameWrapper.start_game(self)
         self.reset_game(timer_div=timer_div)
 
     def reset_game(self, timer_div=None):
@@ -394,11 +387,9 @@ class GameWrapperTetris(PyBoyGameWrapper):
         After calling `start_game`, you can call this method at any time to reset the game.
 
         Kwargs:
-            timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+            * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
         &#34;&#34;&#34;
         PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-        self._set_timer_div(timer_div)
         self.pyboy.button(&#34;start&#34;)
         self.pyboy.tick(7, False)
 
@@ -451,6 +442,7 @@ class GameWrapperTetris(PyBoyGameWrapper):
         -------
         shape:
             `str` of which Tetromino will drop:
+
             * `&#34;L&#34;`: L-shape
             * `&#34;J&#34;`: reverse L-shape
             * `&#34;I&#34;`: I-shape
@@ -571,7 +563,9 @@ first playable state.</p>
 <p>The state of the emulator is saved, and using <code>reset_game</code>, you can get back to this point of the game
 instantly.</p>
 <h2 id="kwargs">Kwargs</h2>
-<p>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</p></section>
+<ul>
+<li>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</li>
+</ul></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -585,10 +579,8 @@ instantly.</p>
     instantly.
 
     Kwargs:
-        timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+        * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
     &#34;&#34;&#34;
-    # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
-    PyBoyGameWrapper.start_game(self)
 
     # Boot screen
     while True:
@@ -601,9 +593,8 @@ instantly.</p>
         self.pyboy.button(&#34;start&#34;)
         self.pyboy.tick(7, False)
 
-    self.saved_state.seek(0)
-    self.pyboy.save_state(self.saved_state)
-
+    # We don&#39;t supply the timer_div arg here, as it won&#39;t have the desired effect
+    PyBoyGameWrapper.start_game(self)
     self.reset_game(timer_div=timer_div)</code></pre>
 </details>
 </dd>
@@ -613,7 +604,9 @@ instantly.</p>
 <dd>
 <section class="desc"><p>After calling <code>start_game</code>, you can call this method at any time to reset the game.</p>
 <h2 id="kwargs">Kwargs</h2>
-<p>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</p></section>
+<ul>
+<li>timer_div (int): Replace timer's DIV register with this value. Use <code>None</code> to randomize.</li>
+</ul></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -623,11 +616,9 @@ instantly.</p>
     After calling `start_game`, you can call this method at any time to reset the game.
 
     Kwargs:
-        timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
+        * timer_div (int): Replace timer&#39;s DIV register with this value. Use `None` to randomize.
     &#34;&#34;&#34;
     PyBoyGameWrapper.reset_game(self, timer_div=timer_div)
-
-    self._set_timer_div(timer_div)
     self.pyboy.button(&#34;start&#34;)
     self.pyboy.tick(7, False)</code></pre>
 </details>
@@ -719,14 +710,18 @@ ____________________________________________
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>shape:</code></dt>
-<dd><code>str</code> of which Tetromino will drop:
-* <code>"L"</code>: L-shape
-* <code>"J"</code>: reverse L-shape
-* <code>"I"</code>: I-shape
-* <code>"O"</code>: square-shape
-* <code>"Z"</code>: zig-zag left to right
-* <code>"S"</code>: zig-zag right to left
-* <code>"T"</code>: T-shape</dd>
+<dd>
+<p><code>str</code> of which Tetromino will drop:</p>
+<ul>
+<li><code>"L"</code>: L-shape</li>
+<li><code>"J"</code>: reverse L-shape</li>
+<li><code>"I"</code>: I-shape</li>
+<li><code>"O"</code>: square-shape</li>
+<li><code>"Z"</code>: zig-zag left to right</li>
+<li><code>"S"</code>: zig-zag right to left</li>
+<li><code>"T"</code>: T-shape</li>
+</ul>
+</dd>
 </dl></section>
 <details class="source">
 <summary>
@@ -743,6 +738,7 @@ ____________________________________________
     -------
     shape:
         `str` of which Tetromino will drop:
+
         * `&#34;L&#34;`: L-shape
         * `&#34;J&#34;`: reverse L-shape
         * `&#34;I&#34;`: I-shape
