@@ -10,11 +10,10 @@ from pathlib import Path
 import gymnasium as gym
 import numpy as np
 import torch
-from gymnasium.wrappers import FrameStack
 
 # Import environment and wrappers
 from environment.pokemon_pinball_env import PokemonPinballEnv, RewardShaping
-from environment.wrappers import SkipFrame, NormalizedObservation, EpisodicLifeEnv
+from environment.wrappers import SkipFrame, NormalizedObservation, EpisodicLifeEnv, FrameStack
 
 # Import agents
 from agents.dqn_agent import DQNAgent
@@ -64,7 +63,24 @@ def setup_environment(args):
     """
     # Set up PyBoy
     window_type = "null" if args.headless else "SDL2"
-    pyboy = PyBoy(args.rom, game_wrapper=True, window=window_type)
+    pyboy = PyBoy(args.rom, window=window_type)
+    # Get the game wrapper
+    game_wrapper = pyboy.game_wrapper
+    
+    # Initialize the game properly
+    print("Starting game and running initial ticks...")
+    game_wrapper.start_game()
+    # Run some initial ticks to ensure the game is properly started
+    for _ in range(50):  # Run 50 initial ticks
+        pyboy.tick()
+    # Press start to begin the game
+    pyboy.button_press("start")
+    pyboy.tick(10)
+    pyboy.button_release("start")
+    # Run more ticks to ensure the ball is in play
+    for _ in range(100):
+        pyboy.tick()
+    print("Game initialized and ready for training")
     
     # Set up reward shaping
     reward_shaping = None

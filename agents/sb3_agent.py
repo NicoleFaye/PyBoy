@@ -20,15 +20,16 @@ class SB3Logger(BaseCallback):
     def __init__(self, logger):
         """Initialize the callback."""
         super().__init__(verbose=0)
-        self.logger = logger
+        self._logger = logger
         
     def _on_step(self) -> bool:
         """Called at each step of training."""
-        self.logger.log_step(
-            reward=self.locals.get("rewards", [0])[0],
-            loss=self.model.logger.name_to_value.get("train/loss", None),
-            q=self.model.logger.name_to_value.get("train/q_values", None)
-        )
+        if self._logger is not None:
+            self._logger.log_step(
+                reward=self.locals.get("rewards", [0])[0],
+                loss=self.model.logger.name_to_value.get("train/loss", None),
+                q=self.model.logger.name_to_value.get("train/q_values", None)
+            )
         return True
         
 
@@ -136,14 +137,14 @@ class SB3Agent(BaseAgent):
         set_random_seed(self.params["seed"])
         
         if self.algorithm == "DQN":
-            self.model = DQN("CnnPolicy", env, **self.params)
+            self.model = DQN("MlpPolicy", env, **self.params)
         elif self.algorithm == "A2C":
-            self.model = A2C("CnnPolicy", env, **self.params)
+            self.model = A2C("MlpPolicy", env, **self.params)
         elif self.algorithm == "PPO":
-            self.model = PPO("CnnPolicy", env, **self.params)
+            self.model = PPO("MlpPolicy", env, **self.params)
             
         self.is_initialized = True
-        self.callback = SB3Logger(logger) if logger else None
+        self.callback = SB3Logger(logger) if logger is not None else None
         
     def train(self, total_timesteps=10000):
         """

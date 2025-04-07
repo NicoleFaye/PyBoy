@@ -3,6 +3,7 @@ Wrappers for the Pokemon Pinball environment.
 """
 import gymnasium as gym
 import numpy as np
+from collections import deque
 
 
 class SkipFrame(gym.Wrapper):
@@ -51,6 +52,7 @@ class SkipFrame(gym.Wrapper):
 class NormalizedObservation(gym.ObservationWrapper):
     """
     Normalize observations to improve training stability.
+    Flattens the observation for MLP compatibility.
     """
     
     def __init__(self, env):
@@ -61,10 +63,15 @@ class NormalizedObservation(gym.ObservationWrapper):
             env: The environment to wrap
         """
         super().__init__(env)
+        # Flatten the observation space
+        shape = self.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1.0, shape=(shape[0] * shape[1],), dtype=np.float32
+        )
         
     def observation(self, observation):
         """
-        Normalize the observation.
+        Normalize the observation and flatten it.
         
         Args:
             observation: The observation to normalize
@@ -72,7 +79,10 @@ class NormalizedObservation(gym.ObservationWrapper):
         Returns:
             The normalized observation
         """
-        return observation.astype(np.float32) / 255.0
+        # Normalize to [0, 1]
+        obs = observation.astype(np.float32) / 255.0
+        # Flatten
+        return obs.flatten()
 
 
 class RewardClipping(gym.RewardWrapper):
@@ -138,7 +148,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.was_real_done = done
         
         # Check current lives
-        lives = self.env.pyboy.game_wrapper.balls_left
+        lives = self.env.unwrapped.pyboy.game_wrapper.balls_left
         
         # Did the agent lose a life?
         if lives < self.lives:
@@ -165,5 +175,70 @@ class EpisodicLifeEnv(gym.Wrapper):
             obs = self.env.unwrapped._get_obs()
             info = self.env.unwrapped._get_info()
             
-        self.lives = self.env.pyboy.game_wrapper.balls_left
+        self.lives = self.env.unwrapped.pyboy.game_wrapper.balls_left
         return obs, info
+
+
+class FrameStack(gym.ObservationWrapper):
+    """
+    Stack frames to provide a temporal context for the agent.
+    Custom implementation of frame stacking for flattened observations.
+    """
+    
+    def __init__(self, env, num_stack):
+        """
+        Initialize the wrapper.
+        
+        Args:
+            env: The environment to wrap
+            num_stack: Number of frames to stack
+        """
+        super().__init__(env)
+        self.num_stack = num_stack
+        self.frames = deque(maxlen=num_stack)
+        
+        # The observation shape should be flattened
+        # After stacking, it will be concatenated
+        old_shape = env.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            low=0,
+            high=1.0,
+            shape=(old_shape[0] * num_stack,),
+            dtype=np.float32
+        )
+        
+    def observation(self, observation):
+        """
+        Stack frames by concatenating flattened observations.
+        
+        Args:
+            observation: The current flattened observation
+            
+        Returns:
+            The stacked frames as a single flattened vector
+        """
+        self.frames.append(observation)
+        
+        # Concatenate flattened observations
+        return np.concatenate(list(self.frames))
+        
+    def reset(self, **kwargs):
+        """
+        Reset the environment and the frame stack.
+        
+        Args:
+            **kwargs: Additional arguments to pass to the environment's reset method
+            
+        Returns:
+            A tuple containing the stacked frames and info
+        """
+        observation, info = self.env.reset(**kwargs)
+        
+        # Clear frame buffer
+        self.frames.clear()
+        
+        # Stack initial observation
+        for _ in range(self.num_stack):
+            self.frames.append(observation)
+            
+        return np.concatenate(list(self.frames)), info

@@ -131,6 +131,12 @@ class PokemonPinballEnv(gym.Env):
         """
         super().reset(seed=seed)
         
+        # Reset reward tracking variables
+        RewardShaping._prev_caught = 0
+        RewardShaping._prev_evolutions = 0
+        RewardShaping._prev_stages_completed = 0
+        RewardShaping._prev_ball_upgrades = 0
+        
         self.pyboy.game_wrapper.reset_game()
         self._fitness = 0
         self._previous_fitness = 0
@@ -195,26 +201,32 @@ class RewardShaping:
     These can be passed to the environment to modify the reward structure.
     """
     
+    # Class-level tracking variables for reward shaping
+    _prev_caught = 0
+    _prev_evolutions = 0
+    _prev_stages_completed = 0
+    _prev_ball_upgrades = 0
+    
     @staticmethod
     def basic(current_fitness, previous_fitness, game_wrapper):
         """Basic reward shaping based on score difference."""
         return current_fitness - previous_fitness
         
-    @staticmethod
-    def catch_focused(current_fitness, previous_fitness, game_wrapper):
+    @classmethod
+    def catch_focused(cls, current_fitness, previous_fitness, game_wrapper):
         """Reward focused on catching Pokemon."""
         score_reward = (current_fitness - previous_fitness) * 0.5
         
         # Big reward for catching Pokemon
         catch_reward = 0
-        if game_wrapper.pokemon_caught_in_session > getattr(catch_focused, "_prev_caught", 0):
+        if game_wrapper.pokemon_caught_in_session > cls._prev_caught:
             catch_reward = 1000
-            catch_focused._prev_caught = game_wrapper.pokemon_caught_in_session
+            cls._prev_caught = game_wrapper.pokemon_caught_in_session
             
         return score_reward + catch_reward
         
-    @staticmethod
-    def comprehensive(current_fitness, previous_fitness, game_wrapper):
+    @classmethod
+    def comprehensive(cls, current_fitness, previous_fitness, game_wrapper):
         """Comprehensive reward that considers multiple game aspects."""
         # Base reward from score
         score_reward = (current_fitness - previous_fitness)
@@ -226,14 +238,14 @@ class RewardShaping:
         ball_alive_reward = 5
         
         # Reward for Pokemon catches
-        if game_wrapper.pokemon_caught_in_session > getattr(comprehensive, "_prev_caught", 0):
+        if game_wrapper.pokemon_caught_in_session > cls._prev_caught:
             additional_reward += 500
-            comprehensive._prev_caught = game_wrapper.pokemon_caught_in_session
+            cls._prev_caught = game_wrapper.pokemon_caught_in_session
             
         # Reward for evolution success
-        if game_wrapper.evolution_success_count > getattr(comprehensive, "_prev_evolutions", 0):
+        if game_wrapper.evolution_success_count > cls._prev_evolutions:
             additional_reward += 300
-            comprehensive._prev_evolutions = game_wrapper.evolution_success_count
+            cls._prev_evolutions = game_wrapper.evolution_success_count
             
         # Reward for bonus stages
         total_stages_completed = (
@@ -244,10 +256,9 @@ class RewardShaping:
             game_wrapper.mewtwo_stages_completed
         )
         
-        prev_stages = getattr(comprehensive, "_prev_stages_completed", 0)
-        if total_stages_completed > prev_stages:
+        if total_stages_completed > cls._prev_stages_completed:
             additional_reward += 200
-            comprehensive._prev_stages_completed = total_stages_completed
+            cls._prev_stages_completed = total_stages_completed
             
         # Reward for ball upgrades
         ball_upgrades = (
@@ -255,9 +266,8 @@ class RewardShaping:
             game_wrapper.ultra_ball_upgrades +
             game_wrapper.master_ball_upgrades
         )
-        prev_upgrades = getattr(comprehensive, "_prev_ball_upgrades", 0)
-        if ball_upgrades > prev_upgrades:
+        if ball_upgrades > cls._prev_ball_upgrades:
             additional_reward += 100
-            comprehensive._prev_ball_upgrades = ball_upgrades
+            cls._prev_ball_upgrades = ball_upgrades
             
         return score_reward + additional_reward + ball_alive_reward

@@ -14,7 +14,7 @@ def printout(pyboy):
         print(output)
 
 
-pyboy = PyBoy("pinball.gbc", game_wrapper=True, debug=debug)
+pyboy = PyBoy("test_roms/secrets/pokemon_pinball.gbc")
 
 pyboy.game_wrapper.start_game()
 pyboy.button("a")
