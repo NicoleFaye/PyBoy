@@ -47,7 +47,7 @@ class SB3Agent(BaseAgent):
         learning_starts: int = 10000,
         batch_size: int = 32,
         gamma: float = 0.99,
-        seed: int = 42,
+        seed: Optional[int] = None,
         policy_kwargs: Optional[Dict] = None,
         verbose: int = 1
     ):
