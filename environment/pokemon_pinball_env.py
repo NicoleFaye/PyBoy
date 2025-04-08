@@ -31,13 +31,14 @@ class PokemonPinballEnv(gym.Env):
     
     metadata = {"render_modes": ["human"]}
     
-    def __init__(self, pyboy, debug=False, reward_shaping=None):
+    def __init__(self, pyboy, debug=False, headless=False, reward_shaping=None):
         """
         Initialize the Pokemon Pinball environment.
         
         Args:
             pyboy: PyBoy instance
-            debug: Enable debug mode
+            debug: Enable debug mode with normal speed for visualization
+            headless: Run without visualization at maximum speed
             reward_shaping: Optional custom reward shaping function
         """
         super().__init__()
@@ -50,7 +51,16 @@ class PokemonPinballEnv(gym.Env):
         self._previous_fitness = 0
         
         self.debug = debug
-        if not debug:
+        self.headless = headless
+        
+        # Configure speed based on mode:
+        # - headless or default: max speed (0)
+        # - debug: normal speed (1.0)
+        if debug:
+            # Normal speed for debugging
+            self.pyboy.set_emulation_speed(1.0)
+        else:
+            # Maximum speed (0 = no limit)
             self.pyboy.set_emulation_speed(0)
             
         self.action_space = spaces.Discrete(len(Actions))
@@ -97,10 +107,13 @@ class PokemonPinballEnv(gym.Env):
             self.pyboy.button("select")
             self.pyboy.button("b")
             
-        if self.debug:
-            self.pyboy.tick()
-        else:
+        # Tick the emulator appropriately based on mode
+        if self.headless:
+            # Headless mode: Run without sound
             self.pyboy.tick(1, False)
+        else:
+            # Visual mode (both debug and normal): Use regular tick
+            self.pyboy.tick()
             
         done = self.pyboy.game_wrapper.game_over
         

@@ -39,8 +39,8 @@ def parse_args():
                         help="Reward shaping function to use")
     parser.add_argument("--frame-skip", type=int, default=4, help="Number of frames to skip")
     parser.add_argument("--frame-stack", type=int, default=4, help="Number of frames to stack")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
-    parser.add_argument("--headless", action="store_true", help="Run without window")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with normal speed visualization")
+    parser.add_argument("--headless", action="store_true", help="Run without visualization (fastest training)")
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
     parser.add_argument("--exploration-rate", type=float, default=1.0, help="Initial exploration rate")
     parser.add_argument("--exploration-rate-min", type=float, default=0.1, help="Minimum exploration rate")
@@ -61,26 +61,13 @@ def setup_environment(args):
     Returns:
         The configured environment
     """
-    # Set up PyBoy
+    # Set up PyBoy with appropriate window type
+    # - headless: null window (no visuals)
+    # - debug or default: SDL2 window (with visuals)
     window_type = "null" if args.headless else "SDL2"
     pyboy = PyBoy(args.rom, window=window_type)
     # Get the game wrapper
     game_wrapper = pyboy.game_wrapper
-    
-    # Initialize the game properly
-    print("Starting game and running initial ticks...")
-    game_wrapper.start_game()
-    # Run some initial ticks to ensure the game is properly started
-    for _ in range(50):  # Run 50 initial ticks
-        pyboy.tick()
-    # Press start to begin the game
-    pyboy.button_press("start")
-    pyboy.tick(10)
-    pyboy.button_release("start")
-    # Run more ticks to ensure the ball is in play
-    for _ in range(100):
-        pyboy.tick()
-    print("Game initialized and ready for training")
     
     # Set up reward shaping
     reward_shaping = None
@@ -90,7 +77,12 @@ def setup_environment(args):
         reward_shaping = RewardShaping.comprehensive
     
     # Set up environment
-    env = PokemonPinballEnv(pyboy, debug=args.debug, reward_shaping=reward_shaping)
+    env = PokemonPinballEnv(
+        pyboy, 
+        debug=args.debug, 
+        headless=args.headless,
+        reward_shaping=reward_shaping
+    )
     
     # Apply wrappers
     env = SkipFrame(env, skip=args.frame_skip)
@@ -168,6 +160,7 @@ def train_dqn(agent, env, args, save_dir):
             print(f"Loading checkpoint from {checkpoint_path}")
             agent.load(checkpoint_path)
             current_episode = agent.curr_episode
+            print(f"Resumed from episode {current_episode}")
         else:
             print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
     
@@ -214,6 +207,12 @@ def train_dqn(agent, env, args, save_dir):
                     step=agent.curr_step
                 )
             
+            # Save checkpoint periodically (every 100 episodes)
+            if current_episode % 100 == 0 and current_episode > 0:
+                checkpoint_name = f"episode_{current_episode}"
+                agent.save(checkpoint_name)
+                print(f"Saved checkpoint at episode {current_episode}")
+            
             # Update episode counters
             current_episode += 1
             agent.curr_episode = current_episode
@@ -222,7 +221,7 @@ def train_dqn(agent, env, args, save_dir):
         print("Training interrupted by user")
     finally:
         # Save final model
-        agent.save()
+        agent.save("final")
         
         # Clean up
         env.close()
@@ -246,27 +245,43 @@ def train_sb3(agent, env, args, save_dir):
     agent.initialize(env, logger)
     
     # Load checkpoint if specified
+    current_timestep = 0
     if args.checkpoint:
         checkpoint_path = Path(args.checkpoint)
         if checkpoint_path.exists():
             print(f"Loading checkpoint from {checkpoint_path}")
             agent.load(checkpoint_path)
+            # Get current timestep if available
+            if hasattr(agent.model, 'num_timesteps'):
+                current_timestep = agent.model.num_timesteps
+                print(f"Resumed from timestep {current_timestep}")
         else:
             print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
     
-    print(f"Training with {args.sb3_algo.upper()} for {args.episodes} timesteps")
+    total_timesteps = args.episodes * 1000  # Approximation of total timesteps
+    
+    print(f"Training with {args.sb3_algo.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
     print(f"Reward shaping: {args.reward_shaping}, Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Save directory: {save_dir}")
     
     try:
-        # Train the agent
-        agent.train(total_timesteps=args.episodes * 1000)  # Approximation of total timesteps
+        # Train the agent, without resetting timesteps if resuming
+        agent.train(
+            total_timesteps=total_timesteps,
+            reset_num_timesteps=args.checkpoint is None,
+            checkpoint_freq=100000,  # Save every 100k steps
+            checkpoint_path=str(save_dir)
+        )
         
     except KeyboardInterrupt:
         print("Training interrupted by user")
+        # Save on interrupt
+        interrupt_checkpoint = f"interrupted_timestep_{agent.model.num_timesteps}"
+        agent.save(interrupt_checkpoint)
+        print(f"Saved checkpoint at interruption (timestep {agent.model.num_timesteps})")
     finally:
         # Save final model
-        agent.save()
+        agent.save("final")
         
         # Clean up
         env.close()
