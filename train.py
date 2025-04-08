@@ -48,6 +48,7 @@ def parse_args(args=None):
     parser.add_argument("--headless", action="store_true", help="Run without visualization (fastest training)")
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
     parser.add_argument("--gamma", type=float, default=0.9, help="Discount factor")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility (default: use system time)")
     
     parsed_args = parser.parse_args(args)
     
@@ -100,7 +101,7 @@ def setup_environment(args):
     return env
 
 
-def setup_agent(args, env, save_dir):
+def setup_agent(args, env, save_dir, seed=None):
     """
     Set up the SB3 agent.
     
@@ -108,6 +109,7 @@ def setup_agent(args, env, save_dir):
         args: Command line arguments
         env: The environment
         save_dir: Directory to save models and logs
+        seed: Random seed to use
         
     Returns:
         The configured agent
@@ -123,7 +125,8 @@ def setup_agent(args, env, save_dir):
             save_dir=save_dir,
             algorithm=args.algorithm.upper(),
             learning_rate=args.lr,
-            gamma=args.gamma
+            gamma=args.gamma,
+            seed=seed
         )
     except ImportError:
         print("Error: Stable-Baselines3 is not installed. Please install it with:")
@@ -214,12 +217,13 @@ def train(agent, env, args, save_dir):
         print("Training complete")
 
 
-def save_config(args, save_dir):
+def save_config(args, save_dir, seed=None):
     """Save training configuration to a file.
     
     Args:
         args: Command line arguments
         save_dir: Directory to save config
+        seed: The random seed that was used
     """
     import json
     
@@ -228,6 +232,10 @@ def save_config(args, save_dir):
     # Remove checkpoint path as it will be different when resuming
     if 'checkpoint' in config:
         del config['checkpoint']
+        
+    # Add the actual seed used
+    if seed is not None:
+        config['seed'] = seed
     
     # Save to file
     config_path = save_dir / "training_config.json"
@@ -303,18 +311,27 @@ def main():
     save_dir = base_save_dir / model_name
     save_dir.mkdir(parents=True, exist_ok=True)
     
-    # Save the current configuration
-    save_config(args, save_dir)
-    
     # Set random seeds for reproducibility
-    torch.manual_seed(42)
-    np.random.seed(42)
+    if args.seed is None:
+        # Use current time as seed if none provided
+        import time
+        seed = int(time.time()) % 100000
+        print(f"Using time-based random seed: {seed}")
+    else:
+        seed = args.seed
+        print(f"Using provided random seed: {seed}")
+    
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     
     # Set up environment
     env = setup_environment(args)
     
     # Set up agent
-    agent = setup_agent(args, env, save_dir)
+    agent = setup_agent(args, env, save_dir, seed=seed)
+    
+    # Save configuration with actual seed used
+    save_config(args, save_dir, seed=seed)
     
     # Train agent
     train(agent, env, args, save_dir)
