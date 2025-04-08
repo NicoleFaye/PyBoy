@@ -100,3 +100,4 @@ test.replay
 .vscode/
 
 /checkpoints/
+/node_modules/

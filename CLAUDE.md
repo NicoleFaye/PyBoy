@@ -5,7 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 - Run tests: `pytest tests/`
 - Run a single test: `pytest tests/test_file.py::test_function`
-- Run AI training: `python train.py --rom [ROM_PATH] --agent [dqn|sb3] --reward-shaping [basic|catch_focused|comprehensive]`
+- Run AI training: `python train.py --rom [ROM_PATH] --algorithm [dqn|a2c|ppo] --reward-shaping [basic|catch_focused|comprehensive]`
+- Resume training: `python train.py --checkpoint [CHECKPOINT_DIR]/[CHECKPOINT_FILE].zip --model-name [MODEL_NAME]`
+  - Example: `python train.py --checkpoint checkpoints/ppo_comprehensive/final.zip --model-name ppo_comprehensive`
+  - Will automatically find the most recent checkpoint if the specified file doesn't exist
 - PyBoy scripts: `python -m pyboy [ROM_PATH] [OPTIONS]`
 
 ## Code Style
@@ -22,4 +25,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - PyBoy initialization: `pyboy = PyBoy(rom_path, window="SDL2")` (don't use game_wrapper parameter)
 - Access the game wrapper via: `pyboy.game_wrapper`
 - PyBoy uses Cython for performance-critical components
-- Reinforcement learning agents (DQN and SB3) have different implementations but similar interfaces
+- Reinforcement learning uses Stable-Baselines3 with support for DQN, A2C, and PPO algorithms

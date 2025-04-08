@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Main training script for Pokemon Pinball AI.
-This script supports training different agents on the Pokemon Pinball environment.
+This script supports training SB3 agents on the Pokemon Pinball environment.
 """
 import argparse
 import datetime
@@ -15,21 +15,26 @@ import torch
 from environment.pokemon_pinball_env import PokemonPinballEnv, RewardShaping
 from environment.wrappers import SkipFrame, NormalizedObservation, EpisodicLifeEnv, FrameStack
 
-# Import agents
-from agents.dqn_agent import DQNAgent
+# Import logger
 from utils.logger import MetricLogger
 
 # Import PyBoy
 from pyboy import PyBoy
 
 
-def parse_args():
-    """Parse command line arguments."""
+def parse_args(args=None):
+    """Parse command line arguments.
+    
+    Args:
+        args: List of arguments to parse. If None, uses sys.argv
+    
+    Returns:
+        Parsed arguments
+    """
     parser = argparse.ArgumentParser(description="Train an agent to play Pokemon Pinball")
-    parser.add_argument("--rom", type=str, required=True, help="Path to the ROM file")
-    parser.add_argument("--agent", type=str, default="dqn", choices=["dqn", "sb3"], help="Agent to use")
-    parser.add_argument("--sb3-algo", type=str, default="dqn", choices=["dqn", "a2c", "ppo"], 
-                        help="Algorithm to use with Stable-Baselines3")
+    parser.add_argument("--rom", type=str, required=False, default=None, help="Path to the ROM file")
+    parser.add_argument("--algorithm", type=str, default="ppo", choices=["dqn", "a2c", "ppo"], 
+                        help="SB3 algorithm to use")
     parser.add_argument("--episodes", type=int, default=10000, help="Number of episodes to train for")
     parser.add_argument("--model-name", type=str, default=None, 
                         help="Name for the model directory. If not specified, timestamp will be used")
@@ -42,13 +47,15 @@ def parse_args():
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with normal speed visualization")
     parser.add_argument("--headless", action="store_true", help="Run without visualization (fastest training)")
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
-    parser.add_argument("--exploration-rate", type=float, default=1.0, help="Initial exploration rate")
-    parser.add_argument("--exploration-rate-min", type=float, default=0.1, help="Minimum exploration rate")
-    parser.add_argument("--exploration-rate-decay", type=float, default=0.99999975, 
-                        help="Exploration rate decay")
     parser.add_argument("--gamma", type=float, default=0.9, help="Discount factor")
     
-    return parser.parse_args()
+    parsed_args = parser.parse_args(args)
+    
+    # ROM is only required when not resuming or when args are not explicitly provided
+    if parsed_args.rom is None and parsed_args.checkpoint is None and args is not None:
+        parser.error("the --rom argument is required when not resuming from a checkpoint")
+    
+    return parsed_args
 
 
 def setup_environment(args):
@@ -95,7 +102,7 @@ def setup_environment(args):
 
 def setup_agent(args, env, save_dir):
     """
-    Set up the agent.
+    Set up the SB3 agent.
     
     Args:
         args: Command line arguments
@@ -108,127 +115,25 @@ def setup_agent(args, env, save_dir):
     state_dim = env.observation_space.shape
     action_dim = env.action_space.n
     
-    if args.agent == "dqn":
-        agent = DQNAgent(
+    try:
+        from agents.sb3_agent import SB3Agent
+        agent = SB3Agent(
             state_dim=state_dim,
             action_dim=action_dim,
             save_dir=save_dir,
+            algorithm=args.algorithm.upper(),
             learning_rate=args.lr,
-            gamma=args.gamma,
-            exploration_rate=args.exploration_rate,
-            exploration_rate_min=args.exploration_rate_min,
-            exploration_rate_decay=args.exploration_rate_decay
+            gamma=args.gamma
         )
-    elif args.agent == "sb3":
-        try:
-            from agents.sb3_agent import SB3Agent
-            agent = SB3Agent(
-                state_dim=state_dim,
-                action_dim=action_dim,
-                save_dir=save_dir,
-                algorithm=args.sb3_algo.upper(),
-                learning_rate=args.lr,
-                gamma=args.gamma
-            )
-            agent.initialize(env)
-        except ImportError:
-            print("Error: Stable-Baselines3 is not installed. Please install it with:")
-            print("pip install stable-baselines3[extra]")
-            exit(1)
+    except ImportError:
+        print("Error: Stable-Baselines3 is not installed. Please install it with:")
+        print("pip install stable-baselines3[extra]")
+        exit(1)
     
     return agent
 
 
-def train_dqn(agent, env, args, save_dir):
-    """
-    Train a DQN agent.
-    
-    Args:
-        agent: The agent to train
-        env: The environment
-        args: Command line arguments
-        save_dir: Directory to save models and logs
-    """
-    # Set up logger
-    logger = MetricLogger(save_dir, resume=args.checkpoint is not None)
-    
-    # Load checkpoint if specified
-    current_episode = 0
-    if args.checkpoint:
-        checkpoint_path = Path(args.checkpoint)
-        if checkpoint_path.exists():
-            print(f"Loading checkpoint from {checkpoint_path}")
-            agent.load(checkpoint_path)
-            current_episode = agent.curr_episode
-            print(f"Resumed from episode {current_episode}")
-        else:
-            print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
-    
-    print(f"Training for {args.episodes} episodes, starting from episode {current_episode}")
-    print(f"Agent: {args.agent.upper()}, Reward shaping: {args.reward_shaping}")
-    print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
-    print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
-    print(f"Exploration rate: {args.exploration_rate} -> {args.exploration_rate_min} (decay: {args.exploration_rate_decay})")
-    print(f"Save directory: {save_dir}")
-    
-    try:
-        # Main training loop
-        while current_episode < args.episodes:
-            state, _ = env.reset()
-            
-            # Play the game
-            while True:
-                # Select and perform action
-                action = agent.act(state)
-                next_state, reward, done, truncated, info = env.step(action)
-                
-                # Store transition and learn
-                agent.cache(state, next_state, action, reward, done)
-                q, loss = agent.learn()
-                
-                # Logging
-                logger.log_step(reward, loss, q)
-                
-                # Update state
-                state = next_state
-                
-                # Check if done
-                if done or truncated:
-                    break
-            
-            # Episode finished, log statistics
-            logger.log_episode()
-            
-            # Record metrics periodically
-            if (current_episode % 20 == 0) or (current_episode == args.episodes - 1):
-                logger.record(
-                    episode=current_episode,
-                    epsilon=agent.exploration_rate,
-                    step=agent.curr_step
-                )
-            
-            # Save checkpoint periodically (every 100 episodes)
-            if current_episode % 100 == 0 and current_episode > 0:
-                checkpoint_name = f"episode_{current_episode}"
-                agent.save(checkpoint_name)
-                print(f"Saved checkpoint at episode {current_episode}")
-            
-            # Update episode counters
-            current_episode += 1
-            agent.curr_episode = current_episode
-            
-    except KeyboardInterrupt:
-        print("Training interrupted by user")
-    finally:
-        # Save final model
-        agent.save("final")
-        
-        # Clean up
-        env.close()
-        print("Training complete")
-
-
-def train_sb3(agent, env, args, save_dir):
+def train(agent, env, args, save_dir):
     """
     Train a Stable-Baselines3 agent.
     
@@ -248,7 +153,27 @@ def train_sb3(agent, env, args, save_dir):
     current_timestep = 0
     if args.checkpoint:
         checkpoint_path = Path(args.checkpoint)
-        if checkpoint_path.exists():
+        
+        # Check if the specified path exists
+        if not checkpoint_path.exists():
+            # Try to find the most recent checkpoint in the directory
+            checkpoint_dir = checkpoint_path.parent
+            if checkpoint_dir.exists():
+                checkpoint_files = list(checkpoint_dir.glob("*.zip"))
+                if checkpoint_files:
+                    # Sort by modification time, newest first
+                    checkpoint_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                    checkpoint_path = checkpoint_files[0]
+                    print(f"Specified checkpoint not found. Using most recent: {checkpoint_path}")
+                else:
+                    print(f"No checkpoint files found in {checkpoint_dir}. Starting from scratch.")
+                    checkpoint_path = None
+            else:
+                print(f"Checkpoint directory {checkpoint_dir} not found. Starting from scratch.")
+                checkpoint_path = None
+        
+        # Load checkpoint if we found a valid one
+        if checkpoint_path is not None:
             print(f"Loading checkpoint from {checkpoint_path}")
             agent.load(checkpoint_path)
             # Get current timestep if available
@@ -256,12 +181,13 @@ def train_sb3(agent, env, args, save_dir):
                 current_timestep = agent.model.num_timesteps
                 print(f"Resumed from timestep {current_timestep}")
         else:
-            print(f"Warning: Checkpoint {checkpoint_path} not found. Starting from scratch.")
+            print("Starting from scratch.")
     
     total_timesteps = args.episodes * 1000  # Approximation of total timesteps
     
-    print(f"Training with {args.sb3_algo.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
+    print(f"Training with {args.algorithm.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
     print(f"Reward shaping: {args.reward_shaping}, Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
+    print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
     print(f"Save directory: {save_dir}")
     
     try:
@@ -288,15 +214,97 @@ def train_sb3(agent, env, args, save_dir):
         print("Training complete")
 
 
+def save_config(args, save_dir):
+    """Save training configuration to a file.
+    
+    Args:
+        args: Command line arguments
+        save_dir: Directory to save config
+    """
+    import json
+    
+    # Convert args to dictionary
+    config = vars(args).copy()
+    # Remove checkpoint path as it will be different when resuming
+    if 'checkpoint' in config:
+        del config['checkpoint']
+    
+    # Save to file
+    config_path = save_dir / "training_config.json"
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=4)
+    
+    print(f"Saved training configuration to {config_path}")
+
+
+def load_config(checkpoint_dir):
+    """Load training configuration from a file.
+    
+    Args:
+        checkpoint_dir: Directory containing config
+        
+    Returns:
+        Dictionary of parameters
+    """
+    import json
+    
+    config_path = checkpoint_dir / "training_config.json"
+    if not config_path.exists():
+        print(f"Warning: No config file found at {config_path}")
+        return {}
+    
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    print(f"Loaded training configuration from {config_path}")
+    return config
+
+
 def main():
     """Main function."""
     args = parse_args()
+    
+    # Load config from checkpoint directory if resuming
+    loaded_config = {}
+    if args.checkpoint:
+        checkpoint_path = Path(args.checkpoint)
+        # Get the directory containing the checkpoint
+        checkpoint_dir = checkpoint_path.parent
+        loaded_config = load_config(checkpoint_dir)
+    
+    # Override loaded config with explicitly specified args
+    if loaded_config:
+        # Create a parser and get default values
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--rom", type=str, default=None)
+        parser.add_argument("--algorithm", type=str, default="ppo")
+        parser.add_argument("--episodes", type=int, default=10000)
+        parser.add_argument("--model-name", type=str, default=None)
+        parser.add_argument("--checkpoint", type=str, default=None)
+        parser.add_argument("--reward-shaping", type=str, default="basic")
+        parser.add_argument("--frame-skip", type=int, default=4)
+        parser.add_argument("--frame-stack", type=int, default=4)
+        parser.add_argument("--debug", action="store_true")
+        parser.add_argument("--headless", action="store_true")
+        parser.add_argument("--lr", type=float, default=0.00025)
+        parser.add_argument("--gamma", type=float, default=0.9)
+        default_args = vars(parser.parse_args([]))
+        
+        # Update the namespace with loaded config, but only for parameters not explicitly set
+        args_dict = vars(args)
+        for key, value in loaded_config.items():
+            # Check if the argument was not explicitly set (is the default value)
+            if key in args_dict and args_dict[key] == default_args.get(key) and key != 'checkpoint':
+                args_dict[key] = value
     
     # Set up save directory
     model_name = args.model_name or datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     base_save_dir = Path("checkpoints")
     save_dir = base_save_dir / model_name
     save_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save the current configuration
+    save_config(args, save_dir)
     
     # Set random seeds for reproducibility
     torch.manual_seed(42)
@@ -309,10 +317,7 @@ def main():
     agent = setup_agent(args, env, save_dir)
     
     # Train agent
-    if args.agent == "dqn":
-        train_dqn(agent, env, args, save_dir)
-    elif args.agent == "sb3":
-        train_sb3(agent, env, args, save_dir)
+    train(agent, env, args, save_dir)
 
 
 if __name__ == "__main__":

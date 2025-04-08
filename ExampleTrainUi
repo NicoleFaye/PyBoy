@@ -1,0 +1,2 @@
+#!/bin/bash
+python train.py --rom /home/nicole-demera/PyBoy/test_roms/secrets/pokemon_pinball.gbc --algorithm ppo --reward-shaping comprehensive --model-name ppo_comprehensive --lr 0.0003

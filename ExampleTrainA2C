@@ -1,0 +1,2 @@
+#!/bin/bash
+python train.py --rom /home/nicole-demera/PyBoy/test_roms/secrets/pokemon_pinball.gbc --algorithm a2c --reward-shaping comprehensive --model-name a2c_comprehensive --lr 0.0003 --headless

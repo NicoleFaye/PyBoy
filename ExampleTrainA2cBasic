@@ -1,0 +1,2 @@
+#!/bin/bash
+python train.py --rom /home/nicole-demera/PyBoy/test_roms/secrets/pokemon_pinball.gbc --algorithm a2c --reward-shaping catch_focused --model-name a2c_catch_focused --lr 0.0003 

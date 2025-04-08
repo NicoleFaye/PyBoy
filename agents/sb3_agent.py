@@ -146,12 +146,15 @@ class SB3Agent(BaseAgent):
         self.is_initialized = True
         self.callback = SB3Logger(logger) if logger is not None else None
         
-    def train(self, total_timesteps=10000):
+    def train(self, total_timesteps=10000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None):
         """
         Train the agent for a specified number of timesteps.
         
         Args:
             total_timesteps: Total number of timesteps to train for
+            reset_num_timesteps: Whether to reset the number of timesteps to 0
+            checkpoint_freq: Frequency (in timesteps) to save checkpoints
+            checkpoint_path: Directory to save checkpoints
         """
         if not self.is_initialized:
             raise RuntimeError("Agent must be initialized with an environment first!")
@@ -159,7 +162,8 @@ class SB3Agent(BaseAgent):
         self.model.learn(
             total_timesteps=total_timesteps,
             callback=self.callback,
-            progress_bar=True
+            progress_bar=True,
+            reset_num_timesteps=reset_num_timesteps
         )
         
     def act(self, state: Any) -> int:
@@ -205,12 +209,22 @@ class SB3Agent(BaseAgent):
         # SB3 handles this internally
         return None, None
         
-    def save(self) -> None:
-        """Save the agent's model."""
+    def save(self, checkpoint_name=None) -> None:
+        """
+        Save the agent's model.
+        
+        Args:
+            checkpoint_name: Name for the checkpoint file. If not provided,
+                             will use a default name with timestep.
+        """
         if not self.is_initialized:
             raise RuntimeError("Agent must be initialized with an environment first!")
+        
+        if checkpoint_name is None:
+            # Default checkpoint name with timestep
+            checkpoint_name = f"{self.algorithm.lower()}_model_{self.curr_step}"
             
-        save_path = self.save_dir / f"{self.algorithm.lower()}_model_{self.curr_step}"
+        save_path = self.save_dir / checkpoint_name
         self.model.save(save_path)
         print(f"Model saved to {save_path}")
         
@@ -224,5 +238,5 @@ class SB3Agent(BaseAgent):
         if self.model is None:
             raise RuntimeError("Agent must be initialized with an environment first!")
             
-        self.model = self.model.load(path)
+        self.model = self.model.load(path, env=self.model.get_env())
         print(f"Loaded model from {path}")
