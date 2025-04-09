@@ -146,8 +146,13 @@ def train(agent, env, args, save_dir):
         args: Command line arguments
         save_dir: Directory to save models and logs
     """
-    # Set up logger
-    logger = MetricLogger(save_dir, resume=args.checkpoint is not None)
+    # Set up logger with algorithm and reward shaping info for better comparison
+    logger = MetricLogger(
+        save_dir, 
+        resume=args.checkpoint is not None,
+        algorithm_name=args.algorithm.upper(),
+        reward_shaping=args.reward_shaping
+    )
     
     # Initialize agent with environment and logger
     agent.initialize(env, logger)
