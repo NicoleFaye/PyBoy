@@ -31,7 +31,7 @@ class PokemonPinballEnv(gym.Env):
     
     metadata = {"render_modes": ["human"]}
     
-    def __init__(self, pyboy, debug=False, headless=False, reward_shaping=None):
+    def __init__(self, pyboy, debug=False, headless=False, reward_shaping=None, info_level=0):
         """
         Initialize the Pokemon Pinball environment.
         
@@ -67,6 +67,7 @@ class PokemonPinballEnv(gym.Env):
         self.observation_space = OBSERVATION_SPACE
         
         self.reward_shaping = reward_shaping
+        self.info_level = info_level
         
         # Initialize game
         self.pyboy.game_wrapper.start_game()
@@ -190,24 +191,54 @@ class PokemonPinballEnv(gym.Env):
             Dictionary of additional information
         """
         game_wrapper = self.pyboy.game_wrapper
-        return {
-            "score": game_wrapper.score,
-            "balls_left": game_wrapper.balls_left,
-            "multiplier": game_wrapper.multiplier,
-            "ball_x": game_wrapper.ball_x,
-            "ball_y": game_wrapper.ball_y,
-            "ball_x_velocity": game_wrapper.ball_x_velocity,
-            "ball_y_velocity": game_wrapper.ball_y_velocity,
-            "current_stage": game_wrapper.current_stage,
-            "pokemon_caught": game_wrapper.pokemon_caught_in_session,
-        }
+        if self.info_level == 0:
+            return {
+                #TODO make info level 0 change from using game area to using raw pixels
+            }
+        elif self.info_level == 1:
+            return {
+                "ball_x": game_wrapper.ball_x,
+                "ball_y": game_wrapper.ball_y,
+                "ball_x_velocity": game_wrapper.ball_x_velocity,
+                "ball_y_velocity": game_wrapper.ball_y_velocity,
+                "current_stage": game_wrapper.current_stage,
+            }
+        elif self.info_level == 2:
+            return{
+                "multiplier": game_wrapper.multiplier,
+                "ball_x": game_wrapper.ball_x,
+                "ball_y": game_wrapper.ball_y,
+                "ball_x_velocity": game_wrapper.ball_x_velocity,
+                "ball_y_velocity": game_wrapper.ball_y_velocity,
+                "current_stage": game_wrapper.current_stage,
+                "ball_type": game_wrapper.ball_type,
+                "saver_active": game_wrapper.saver_active,
+                "special_mode": game_wrapper.special_mode,
+                "special_mode_active": game_wrapper.special_mode_active,
+            }
+        elif self.info_level == 3:
+            return {
+                "multiplier": game_wrapper.multiplier,
+                "ball_x": game_wrapper.ball_x,
+                "ball_y": game_wrapper.ball_y,
+                "ball_x_velocity": game_wrapper.ball_x_velocity,
+                "ball_y_velocity": game_wrapper.ball_y_velocity,
+                "current_stage": game_wrapper.current_stage,
+                "ball_type": game_wrapper.ball_type,
+                "saver_active": game_wrapper.saver_active,
+                "special_mode": game_wrapper.special_mode,
+                "special_mode_active": game_wrapper.special_mode_active,
+                "pikachu_saver_charge": game_wrapper.pikachu_saver_charge,
+                #map change charge
+                #catch/evo charge
+            }
         
     def _calculate_fitness(self):
         """Calculate fitness based on the game score."""
         self._previous_fitness = self._fitness
         self._fitness = self.pyboy.game_wrapper.score
         
-
+#TODO adjust reward shaping values
 class RewardShaping:
     """
     Collection of reward shaping functions for Pokemon Pinball.
