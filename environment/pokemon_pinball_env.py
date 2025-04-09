@@ -31,7 +31,7 @@ class PokemonPinballEnv(gym.Env):
     
     metadata = {"render_modes": ["human"]}
     
-    def __init__(self, pyboy, debug=False, headless=False, reward_shaping=None, info_level=0):
+    def __init__(self, pyboy, debug=False, headless=False, reward_shaping=None, info_level=2):
         """
         Initialize the Pokemon Pinball environment.
         
