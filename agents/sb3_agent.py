@@ -2,6 +2,7 @@
 Stable-Baselines3 Agent implementation for Pokemon Pinball.
 This agent uses the Stable-Baselines3 library for RL algorithms.
 """
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -21,15 +22,43 @@ class SB3Logger(BaseCallback):
         """Initialize the callback."""
         super().__init__(verbose=0)
         self._logger = logger
+        self._episode_count = 0
+        self._total_timesteps = 0
+        self._last_log_time = time.time()
         
     def _on_step(self) -> bool:
         """Called at each step of training."""
         if self._logger is not None:
-            self._logger.log_step(
-                reward=self.locals.get("rewards", [0])[0],
-                loss=self.model.logger.name_to_value.get("train/loss", None),
-                q=self.model.logger.name_to_value.get("train/q_values", None)
-            )
+            # Get reward, loss, and q-value
+            reward = self.locals.get("rewards", [0])[0]
+            loss = self.model.logger.name_to_value.get("train/loss", None)
+            q = self.model.logger.name_to_value.get("train/q_values", None)
+            
+            # Log step
+            self._logger.log_step(reward=reward, loss=loss, q=q)
+            
+            # Check if episode is done
+            dones = self.locals.get("dones", [False])
+            if dones[0]:
+                # Log the completed episode
+                self._logger.log_episode()
+                self._episode_count += 1
+                
+                # Record metrics every 10 episodes
+                if self._episode_count % 10 == 0:
+                    epsilon = 0.0  # SB3 handles exploration internally
+                    self._total_timesteps = self.num_timesteps
+                    self._logger.record(self._episode_count, epsilon, self._total_timesteps)
+        
+        return True
+    
+    def _on_rollout_end(self) -> bool:
+        """Called at the end of a rollout."""
+        # This is a good place to make sure we log progress even if episodes take a long time
+        if self._logger is not None and self._episode_count > 0:
+            epsilon = 0.0  # SB3 handles exploration internally
+            self._total_timesteps = self.num_timesteps
+            self._logger.record(self._episode_count, epsilon, self._total_timesteps)
         return True
         
 
@@ -135,7 +164,7 @@ class SB3Agent(BaseAgent):
             env: The environment to interact with
             logger: Logger for tracking metrics
         """
-        self.logger = logger
+        self.logger = logger  # Store the logger for use in other methods
         set_random_seed(self.params["seed"])
         
         if self.algorithm == "DQN":
@@ -147,6 +176,15 @@ class SB3Agent(BaseAgent):
             
         self.is_initialized = True
         self.callback = SB3Logger(logger) if logger is not None else None
+        
+        # Log initial configuration
+        if logger is not None:
+            logger.logger.info(
+                f"Initialized {self.algorithm} agent with parameters: "
+                f"learning_rate={self.params['learning_rate']}, "
+                f"gamma={self.params['gamma']}, "
+                f"batch_size={self.batch_size}"
+            )
         
     def train(self, total_timesteps=10000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None):
         """
@@ -228,7 +266,12 @@ class SB3Agent(BaseAgent):
             
         save_path = self.save_dir / checkpoint_name
         self.model.save(save_path)
-        print(f"Model saved to {save_path}")
+        
+        # Log to logger if available, otherwise print
+        if hasattr(self, 'logger') and self.logger is not None:
+            self.logger.logger.info(f"Model saved to {save_path}")
+        else:
+            print(f"Model saved to {save_path}")
         
     def load(self, path: Path) -> None:
         """
@@ -241,4 +284,9 @@ class SB3Agent(BaseAgent):
             raise RuntimeError("Agent must be initialized with an environment first!")
             
         self.model = self.model.load(path, env=self.model.get_env())
-        print(f"Loaded model from {path}")
+        
+        # Log to logger if available, otherwise print
+        if hasattr(self, 'logger') and self.logger is not None:
+            self.logger.logger.info(f"Loaded model from {path}")
+        else:
+            print(f"Loaded model from {path}")
