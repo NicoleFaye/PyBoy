@@ -191,6 +191,8 @@ def train(agent, env, args, save_dir):
     print(f"Training with {args.algorithm.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
     print(f"Reward shaping: {args.reward_shaping}, Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
+    if hasattr(agent.model, 'batch_size'):
+        print(f"Batch size: {agent.model.batch_size}")
     print(f"Save directory: {save_dir}")
     
     try:

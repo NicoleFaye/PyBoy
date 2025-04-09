@@ -60,9 +60,9 @@ class SB3Agent(BaseAgent):
             save_dir: Directory to save models and logs
             algorithm: RL algorithm to use ('DQN', 'A2C', 'PPO')
             learning_rate: Learning rate
-            buffer_size: Size of the replay buffer
-            learning_starts: Number of steps before learning starts
-            batch_size: Batch size for training
+            buffer_size: Size of the replay buffer (primarily for DQN, stored for all)
+            learning_starts: Number of steps before learning starts (primarily for DQN, stored for all)
+            batch_size: Batch size for training (used by all algorithms, but with different meanings)
             gamma: Discount factor
             seed: Random seed
             policy_kwargs: Additional arguments to pass to the policy
@@ -77,12 +77,14 @@ class SB3Agent(BaseAgent):
             )
             
         self.algorithm = algorithm
+        self.buffer_size = buffer_size
+        self.learning_starts = learning_starts
+        self.batch_size = batch_size
         self.policy_kwargs = policy_kwargs or {}
         self.verbose = verbose
-        self.logger = None  # Will be set later
-        self.model = None   # Will be set later
+        self.logger = None  
+        self.model = None  
         
-        # Common parameters
         self.params = {
             "learning_rate": learning_rate,
             "gamma": gamma,
@@ -99,9 +101,9 @@ class SB3Agent(BaseAgent):
         """Set up the specified RL algorithm."""
         if self.algorithm == "DQN":
             self.params.update({
-                "buffer_size": 100000,
-                "learning_starts": 10000,
-                "batch_size": 32,
+                "buffer_size": self.buffer_size,
+                "learning_starts": self.learning_starts,
+                "batch_size": self.batch_size,
                 "exploration_fraction": 0.1,
                 "exploration_initial_eps": 1.0,
                 "exploration_final_eps": 0.05,
@@ -116,7 +118,7 @@ class SB3Agent(BaseAgent):
         elif self.algorithm == "PPO":
             self.params.update({
                 "n_steps": 2048,
-                "batch_size": 64,
+                "batch_size": self.batch_size,  
                 "n_epochs": 10,
                 "ent_coef": 0.01,
                 "gae_lambda": 0.95,
