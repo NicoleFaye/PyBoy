@@ -212,7 +212,7 @@ class PokemonPinballEnv(gym.Env):
                 "ball_y_velocity": game_wrapper.ball_y_velocity,
                 "current_stage": game_wrapper.current_stage,
                 "ball_type": game_wrapper.ball_type,
-                "saver_active": game_wrapper.saver_active,
+                "saver_active": game_wrapper.ball_saver_seconds_left>0,
                 "special_mode": game_wrapper.special_mode,
                 "special_mode_active": game_wrapper.special_mode_active,
             }
@@ -227,7 +227,7 @@ class PokemonPinballEnv(gym.Env):
                 "ball_type": game_wrapper.ball_type,
                 "saver_active": game_wrapper.saver_active,
                 "special_mode": game_wrapper.special_mode,
-                "special_mode_active": game_wrapper.special_mode_active,
+                "saver_active": game_wrapper.ball_saver_seconds_left>0,
                 "pikachu_saver_charge": game_wrapper.pikachu_saver_charge,
                 #map change charge
                 #catch/evo charge
