@@ -84,12 +84,13 @@ def setup_environment(args):
     elif args.reward_shaping == "comprehensive":
         reward_shaping = RewardShaping.comprehensive
     
-    # Set up environment
+    # Set up environment with optimized settings
     env = PokemonPinballEnv(
         pyboy, 
         debug=args.debug, 
         headless=args.headless,
-        reward_shaping=reward_shaping
+        reward_shaping=reward_shaping,
+        info_level=2  # Use minimal info level for better performance
     )
     
     # Apply wrappers
@@ -146,8 +147,22 @@ def train(agent, env, args, save_dir):
         args: Command line arguments
         save_dir: Directory to save models and logs
     """
+    # Collect metadata about this training run for the logger
+    metadata = {
+        'algorithm': args.algorithm,
+        'reward_shaping': args.reward_shaping,
+        'frame_skip': args.frame_skip,
+        'frame_stack': args.frame_stack,
+        'learning_rate': args.lr,
+        'gamma': args.gamma,
+        'episodes': args.episodes,
+        'headless': args.headless,
+        'debug': args.debug,
+        'start_time': datetime.datetime.now().isoformat()
+    }
+    
     # Set up logger
-    logger = MetricLogger(save_dir, resume=args.checkpoint is not None)
+    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata)
     
     # Initialize agent with environment and logger
     agent.initialize(env, logger)
@@ -211,8 +226,15 @@ def train(agent, env, args, save_dir):
         agent.save(interrupt_checkpoint)
         print(f"Saved checkpoint at interruption (timestep {agent.model.num_timesteps})")
     finally:
-        # Save final model
+        # Save final model and ensure metrics are saved
         agent.save("final")
+        
+        # Make sure metrics file is written with final status
+        metadata['end_time'] = datetime.datetime.now().isoformat()
+        metadata['total_steps_completed'] = agent.model.num_timesteps
+        metadata['training_completed'] = True
+        logger.metadata.update(metadata)
+        logger.save_metrics_json()
         
         # Clean up
         env.close()
