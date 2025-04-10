@@ -13,7 +13,7 @@ import numpy as np
 class MetricLogger:
     """Logger for tracking and visualizing training metrics."""
     
-    def __init__(self, save_dir, resume=False, metadata=None):
+    def __init__(self, save_dir, resume=False, metadata=None, max_history=10000, json_save_freq=100):
         """
         Initialize the metric logger.
         
@@ -21,12 +21,17 @@ class MetricLogger:
             save_dir: Directory to save logs and plots
             resume: Whether to resume from existing logs
             metadata: Additional metadata about the training run (algorithm, reward_shaping, etc.)
+            max_history: Maximum number of episodes to keep in memory (0 for unlimited)
+            json_save_freq: How often to save the metrics.json file (every N episodes)
         """
         self.resume = resume
         self.save_dir = save_dir
         self.save_log = save_dir / "log.txt"
         self.metrics_file = save_dir / "metrics.json"
         self.metadata = metadata or {}
+        self.max_history = max_history
+        self.json_save_freq = json_save_freq
+        self.last_json_save_episode = 0
         
         # Plot file paths
         self.ep_rewards_plot = save_dir / "reward_plot.jpg"
@@ -172,6 +177,18 @@ class MetricLogger:
         })
         self.ep_performance.append(self.curr_ep_performance)
         
+        # Prune history if needed to limit memory usage
+        if self.max_history > 0 and len(self.ep_rewards) > self.max_history:
+            # Keep only the most recent max_history episodes
+            self.ep_rewards = self.ep_rewards[-self.max_history:]
+            self.ep_lengths = self.ep_lengths[-self.max_history:]
+            self.ep_avg_losses = self.ep_avg_losses[-self.max_history:]
+            self.ep_avg_qs = self.ep_avg_qs[-self.max_history:]
+            self.ep_performance = self.ep_performance[-self.max_history:]
+            
+            # Note: We intentionally don't prune episode/step/epsilon arrays
+            # as they're used for tracking progress, not for visualization
+        
         self.init_episode()
         
     def record(self, episode, epsilon, step):
@@ -229,15 +246,40 @@ class MetricLogger:
             'total_episodes': episode,
             'total_training_time': total_time
         })
-            
-        # Save metrics as JSON for easy post-processing
-        self.save_metrics_json()
         
-        # Create visualization plots
-        self.plot_metrics()
+        # Save metrics as JSON periodically to reduce I/O overhead
+        # Save on these conditions:
+        # 1. First time through (episode 0)
+        # 2. Every json_save_freq episodes
+        # 3. When explicitly requested by force_save
+        if (episode == 0 or 
+            episode - self.last_json_save_episode >= self.json_save_freq or
+            getattr(self, 'force_save', False)):
+            
+            self.save_metrics_json()
+            self.last_json_save_episode = episode
+            self.force_save = False
+            
+            # Create visualization plots only when saving JSON
+            self.plot_metrics()
         
     def save_metrics_json(self):
         """Save metrics to a JSON file for post-training visualization."""
+        # Convert numpy types to native Python types for JSON serialization
+        def convert_to_native_types(obj):
+            if isinstance(obj, (np.integer, np.int32, np.int64)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float32, np.float64)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, list):
+                return [convert_to_native_types(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {key: convert_to_native_types(value) for key, value in obj.items()}
+            return obj
+
+        # Create metrics data
         metrics_data = {
             "metadata": self.metadata,
             "episodes": self.episode,
@@ -250,8 +292,11 @@ class MetricLogger:
             "performance": self.ep_performance
         }
         
+        # Convert all numpy types to native Python types
+        metrics_data = convert_to_native_types(metrics_data)
+        
         with open(self.metrics_file, 'w') as f:
-            json.dump(metrics_data, f)
+            json.dump(metrics_data, f, indent=2)
         
     def plot_metrics(self):
         """

@@ -21,27 +21,84 @@ class SB3Logger(BaseCallback):
         """Initialize the callback."""
         super().__init__(verbose=0)
         self._logger = logger
+        self._last_recorded_step = 0
+        self._episode_count = 0
+        self._last_record_time = 0
+        self._record_interval = 100  # Record every 100 steps
         
     def _on_step(self) -> bool:
         """Called at each step of training."""
-        if self._logger is not None:
-            # Extract info dict if available
-            info = None
-            if 'infos' in self.locals and len(self.locals['infos']) > 0:
-                info = self.locals['infos'][0]  # Get info from first environment
+        if self._logger is None:
+            return True
             
-            # Extract training metrics
-            loss = self.model.logger.name_to_value.get("train/loss", None)
-            q_value = self.model.logger.name_to_value.get("train/q_values", None)
+        # Extract info dict if available
+        info = None
+        if 'infos' in self.locals and len(self.locals['infos']) > 0:
+            info = self.locals['infos'][0]  # Get info from first environment
+        
+        # Extract training metrics
+        loss = self.model.logger.name_to_value.get("train/loss", None)
+        q_value = self.model.logger.name_to_value.get("train/q_values", None)
+        
+        # Log step with combined data
+        self._logger.log_step(
+            reward=self.locals.get("rewards", [0])[0],
+            loss=loss,
+            q=q_value,
+            info=info
+        )
+        
+        # Check if any episodes have ended (done flag is True)
+        dones = self.locals.get("dones", [False])
+        if any(dones):
+            # An episode has completed, log it
+            self._logger.log_episode()
+            self._episode_count += 1
             
-            # Log step with combined data
-            self._logger.log_step(
-                reward=self.locals.get("rewards", [0])[0],
-                loss=loss,
-                q=q_value,
-                info=info
+            # Record metrics periodically (every few episodes)
+            if self._episode_count % 10 == 0:  # Every 10 episodes
+                epsilon = getattr(self.model, "exploration_rate", 0.0)
+                # For PPO/A2C where exploration_rate isn't defined
+                if hasattr(self.model, "actor") and not hasattr(self.model, "exploration_rate"):
+                    epsilon = 0.0
+                self._logger.record(
+                    episode=self._episode_count,
+                    epsilon=epsilon,
+                    step=self.num_timesteps
+                )
+        
+        # Also periodically record by step count
+        current_step = self.num_timesteps
+        if current_step - self._last_recorded_step >= self._record_interval:
+            epsilon = getattr(self.model, "exploration_rate", 0.0)
+            # For PPO/A2C where exploration_rate isn't defined
+            if hasattr(self.model, "actor") and not hasattr(self.model, "exploration_rate"):
+                epsilon = 0.0
+            self._logger.record(
+                episode=self._episode_count,
+                epsilon=epsilon,
+                step=current_step
             )
+            self._last_recorded_step = current_step
+            
         return True
+        
+    def _on_training_end(self) -> None:
+        """Called at the end of training."""
+        if self._logger is not None:
+            # Ensure final metrics are saved
+            epsilon = getattr(self.model, "exploration_rate", 0.0)
+            if hasattr(self.model, "actor") and not hasattr(self.model, "exploration_rate"):
+                epsilon = 0.0
+            
+            # Force save on training end regardless of frequency settings
+            self._logger.force_save = True
+                
+            self._logger.record(
+                episode=self._episode_count,
+                epsilon=epsilon,
+                step=self.num_timesteps
+            )
         
 
 class SB3Agent(BaseAgent):

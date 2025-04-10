@@ -161,8 +161,14 @@ def train(agent, env, args, save_dir):
         'start_time': datetime.datetime.now().isoformat()
     }
     
-    # Set up logger
-    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata)
+    # Set up logger with optimized settings
+    logger = MetricLogger(
+        save_dir=save_dir, 
+        resume=args.checkpoint is not None, 
+        metadata=metadata,
+        max_history=10000,  # Keep up to 10,000 episodes in memory
+        json_save_freq=100  # Save JSON every 100 episodes
+    )
     
     # Initialize agent with environment and logger
     agent.initialize(env, logger)
