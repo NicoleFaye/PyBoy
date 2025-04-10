@@ -90,7 +90,7 @@ def setup_environment(args):
         debug=args.debug, 
         headless=args.headless,
         reward_shaping=reward_shaping,
-        info_level=2  # Use minimal info level for better performance
+        info_level=2  
     )
     
     # Apply wrappers
