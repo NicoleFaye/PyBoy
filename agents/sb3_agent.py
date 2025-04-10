@@ -25,10 +25,21 @@ class SB3Logger(BaseCallback):
     def _on_step(self) -> bool:
         """Called at each step of training."""
         if self._logger is not None:
+            # Extract info dict if available
+            info = None
+            if 'infos' in self.locals and len(self.locals['infos']) > 0:
+                info = self.locals['infos'][0]  # Get info from first environment
+            
+            # Extract training metrics
+            loss = self.model.logger.name_to_value.get("train/loss", None)
+            q_value = self.model.logger.name_to_value.get("train/q_values", None)
+            
+            # Log step with combined data
             self._logger.log_step(
                 reward=self.locals.get("rewards", [0])[0],
-                loss=self.model.logger.name_to_value.get("train/loss", None),
-                q=self.model.logger.name_to_value.get("train/q_values", None)
+                loss=loss,
+                q=q_value,
+                info=info
             )
         return True
         
