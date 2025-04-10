@@ -211,7 +211,6 @@ class PokemonPinballEnv(gym.Env):
         
         # Additional info for levels 2-3
         if self.info_level >= 2:
-            info["multiplier"] = game_wrapper.multiplier
             info["ball_type"] = game_wrapper.ball_type
             info["saver_active"] = game_wrapper.ball_saver_seconds_left > 0
             info["special_mode"] = game_wrapper.special_mode
