@@ -54,8 +54,13 @@ def plot_metrics(data, output_dir=None):
     timesteps = metadata.get("total_steps", 0)
     
     # Extract metrics
-    rewards = data["rewards"]
-    episode_lengths = data["episode_lengths"]
+    rewards = data.get("rewards", [])
+    episode_lengths = data.get("episode_lengths", [])
+    
+    # Check if we have data to visualize
+    if not rewards or not episode_lengths:
+        print("Warning: No episode data found in metrics file. Training might not have logged episodes properly.")
+        return
     
     # Calculate moving averages
     reward_ma = calculate_moving_average(rewards)
