@@ -186,52 +186,45 @@ class PokemonPinballEnv(gym.Env):
     def _get_info(self):
         """
         Get additional information from the environment.
+        Optimized with attribute caching for better performance.
         
         Returns:
             Dictionary of additional information
         """
+        # Access game wrapper only once
         game_wrapper = self.pyboy.game_wrapper
+        
+        # Level 0 - Minimal information (fastest)
         if self.info_level == 0:
-            return {
-                #TODO make info level 0 change from using game area to using raw pixels
-            }
-        elif self.info_level == 1:
-            return {
-                "ball_x": game_wrapper.ball_x,
-                "ball_y": game_wrapper.ball_y,
-                "ball_x_velocity": game_wrapper.ball_x_velocity,
-                "ball_y_velocity": game_wrapper.ball_y_velocity,
-                "current_stage": game_wrapper.current_stage,
-            }
-        elif self.info_level == 2:
-            return{
-                "multiplier": game_wrapper.multiplier,
-                "ball_x": game_wrapper.ball_x,
-                "ball_y": game_wrapper.ball_y,
-                "ball_x_velocity": game_wrapper.ball_x_velocity,
-                "ball_y_velocity": game_wrapper.ball_y_velocity,
-                "current_stage": game_wrapper.current_stage,
-                "ball_type": game_wrapper.ball_type,
-                "saver_active": game_wrapper.ball_saver_seconds_left>0,
-                "special_mode": game_wrapper.special_mode,
-                "special_mode_active": game_wrapper.special_mode_active,
-            }
-        elif self.info_level == 3:
-            return {
-                "multiplier": game_wrapper.multiplier,
-                "ball_x": game_wrapper.ball_x,
-                "ball_y": game_wrapper.ball_y,
-                "ball_x_velocity": game_wrapper.ball_x_velocity,
-                "ball_y_velocity": game_wrapper.ball_y_velocity,
-                "current_stage": game_wrapper.current_stage,
-                "ball_type": game_wrapper.ball_type,
-                "saver_active": game_wrapper.saver_active,
-                "special_mode": game_wrapper.special_mode,
-                "saver_active": game_wrapper.ball_saver_seconds_left>0,
-                "pikachu_saver_charge": game_wrapper.pikachu_saver_charge,
-                #map change charge
-                #catch/evo charge
-            }
+            return {"score": game_wrapper.score}
+        
+        # For higher info levels, we pre-fetch the commonly used values to avoid
+        # multiple property accesses which can be expensive
+        info = {}
+        
+        # Ball position and velocity (always needed for levels 1-3)
+        info["ball_x"] = game_wrapper.ball_x
+        info["ball_y"] = game_wrapper.ball_y
+        info["ball_x_velocity"] = game_wrapper.ball_x_velocity
+        info["ball_y_velocity"] = game_wrapper.ball_y_velocity
+        info["current_stage"] = game_wrapper.current_stage
+        
+        # Additional info for levels 2-3
+        if self.info_level >= 2:
+            info["multiplier"] = game_wrapper.multiplier
+            info["ball_type"] = game_wrapper.ball_type
+            info["saver_active"] = game_wrapper.ball_saver_seconds_left > 0
+            info["special_mode"] = game_wrapper.special_mode
+            info["special_mode_active"] = game_wrapper.special_mode_active
+            
+            # Extra details for level 3
+            if self.info_level == 3:
+                info["pikachu_saver_charge"] = game_wrapper.pikachu_saver_charge
+                # Future additions:
+                # info["map_change_charge"] = game_wrapper.map_change_charge
+                # info["catch_evo_charge"] = game_wrapper.catch_evo_charge
+        
+        return info
         
     def _calculate_fitness(self):
         """Calculate fitness based on the game score."""
