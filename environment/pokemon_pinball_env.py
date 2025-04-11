@@ -206,43 +206,35 @@ class PokemonPinballEnv(gym.Env):
         # Access game wrapper only once
         game_wrapper = self.pyboy.game_wrapper
         
-        # Level 0 - Minimal information (fastest)
+        # Level 0 - no info
         if self.info_level == 0:
-            return {"score": game_wrapper.score}
+            return {}
         
-        # Level 1 - Essential info only (fast)
-        if self.info_level == 1:
-            return {
-                "score": game_wrapper.score,
-                "current_stage": game_wrapper.current_stage
-            }
         
-        # For higher info levels, we pre-fetch the commonly used values to avoid
-        # multiple property accesses which can be expensive
         info = {
-            "score": game_wrapper.score,
-            "current_stage": game_wrapper.current_stage
+            "ball_x": game_wrapper.ball_x,
+            "ball_y": game_wrapper.ball_y,
+            "ball_x_velocity": game_wrapper.ball_x_velocity,
+            "ball_y_velocity": game_wrapper.ball_y_velocity,
         }
+
+        # Level 1 - position and velocity information
+        if self.info_level == 1:
+            return info
         
-        # Ball position and velocity - only include if really needed
+        # Level 2 - More detailed information (slower)
         if self.info_level >= 2:
-            ball_x = game_wrapper.ball_x
-            ball_y = game_wrapper.ball_y
             info.update({
-                "ball_x": ball_x,
-                "ball_y": ball_y,
-                "ball_x_velocity": game_wrapper.ball_x_velocity,
-                "ball_y_velocity": game_wrapper.ball_y_velocity,
+                "current_stage": game_wrapper.current_stage,
                 "ball_type": game_wrapper.ball_type,
                 "special_mode": game_wrapper.special_mode,
                 "special_mode_active": game_wrapper.special_mode_active
             })
             
-            # Only calculate this once to avoid multiple property accesses
             if game_wrapper.ball_saver_seconds_left > 0:
                 info["saver_active"] = True
             
-            # Most detailed information - only for level 3 and when specifically needed
+            # Level 3 - Most detailed information
             if self.info_level == 3:
                 info["pikachu_saver_charge"] = game_wrapper.pikachu_saver_charge
         
