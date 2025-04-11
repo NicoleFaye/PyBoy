@@ -156,9 +156,9 @@ class PokemonPinballEnv(gym.Env):
         RewardShaping._prev_stages_completed = 0
         RewardShaping._prev_ball_upgrades = 0
         
-        # Cache reference to avoid repeated lookups
         game_wrapper = self._game_wrapper
         game_wrapper.reset_game()
+        game_wrapper.reset_tracking()
         
         # Reset fitness tracking
         self._fitness = 0
@@ -167,8 +167,7 @@ class PokemonPinballEnv(gym.Env):
         # Get observation and info once
         observation = self._get_obs()
         
-        # Only get minimal info during reset
-        info = {"score": 0, "current_stage": game_wrapper.current_stage}
+        info = self._get_info()
         
         return observation, info
         
