@@ -73,7 +73,8 @@ def setup_environment(args):
     # - headless: null window (no visuals)
     # - debug or default: SDL2 window (with visuals)
     window_type = "null" if args.headless else "SDL2"
-    pyboy = PyBoy(args.rom, window=window_type)
+    pyboy = PyBoy(args.rom, window=window_type,sound_emulated=False)
+
     # Get the game wrapper
     game_wrapper = pyboy.game_wrapper
     
@@ -161,14 +162,8 @@ def train(agent, env, args, save_dir):
         'start_time': datetime.datetime.now().isoformat()
     }
     
-    # Set up logger with optimized settings
-    logger = MetricLogger(
-        save_dir=save_dir, 
-        resume=args.checkpoint is not None, 
-        metadata=metadata,
-        max_history=10000,  # Keep up to 10,000 episodes in memory
-        json_save_freq=100  # Save JSON every 100 episodes
-    )
+    # Set up logger
+    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata)
     
     # Initialize agent with environment and logger
     agent.initialize(env, logger)
