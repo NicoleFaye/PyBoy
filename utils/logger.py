@@ -221,6 +221,7 @@ class MetricLogger:
         total_time = np.round(self.record_time - self.start_time, 3)
         
         # Print progress to console
+        """
         print(
             f"Episode {episode} - "
             f"Step {step} - "
@@ -240,6 +241,7 @@ class MetricLogger:
                 f"{episode:<11}{step:<15}{epsilon:<11.5f}"
                 f"{mean_ep_reward:<20.3f}{mean_ep_length:<16.3f}{mean_ep_loss:<15.5f}{mean_ep_q:<15.5f}\n"
             )
+        """
             
         # Update the metadata
         self.metadata.update({
