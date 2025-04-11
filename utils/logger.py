@@ -6,7 +6,9 @@ import json
 import time
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt  
 import numpy as np
 
 
