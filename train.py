@@ -42,6 +42,9 @@ def parse_args(args=None):
     parser.add_argument("--reward-shaping", type=str, default="basic", 
                         choices=["basic", "catch_focused", "comprehensive"], 
                         help="Reward shaping function to use")
+    parser.add_argument("--episode-mode", type=str, default="life", 
+                        choices=["ball", "life", "game"], 
+                        help="When to end episodes: ball (any ball loss), life (ball loss without saver), game (only on game over)")
     parser.add_argument("--frame-skip", type=int, default=4, help="Number of frames to skip")
     parser.add_argument("--frame-stack", type=int, default=4, help="Number of frames to stack")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with normal speed visualization")
@@ -96,7 +99,7 @@ def setup_environment(args):
     
     # Apply wrappers
     env = SkipFrame(env, skip=args.frame_skip)
-    env = EpisodicLifeEnv(env)
+    env = EpisodicLifeEnv(env, episode_mode=args.episode_mode)
     env = NormalizedObservation(env)
     env = FrameStack(env, num_stack=args.frame_stack)
     
@@ -152,6 +155,7 @@ def train(agent, env, args, save_dir):
     metadata = {
         'algorithm': args.algorithm,
         'reward_shaping': args.reward_shaping,
+        'episode_mode': args.episode_mode,
         'frame_skip': args.frame_skip,
         'frame_stack': args.frame_stack,
         'learning_rate': args.lr,
@@ -205,7 +209,8 @@ def train(agent, env, args, save_dir):
     total_timesteps = args.episodes * 1000  # Approximation of total timesteps
     
     print(f"Training with {args.algorithm.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
-    print(f"Reward shaping: {args.reward_shaping}, Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
+    print(f"Reward shaping: {args.reward_shaping}, Episode mode: {args.episode_mode}")
+    print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
     if hasattr(agent.model, 'batch_size'):
         print(f"Batch size: {agent.model.batch_size}")
@@ -315,6 +320,7 @@ def main():
         parser.add_argument("--model-name", type=str, default=None)
         parser.add_argument("--checkpoint", type=str, default=None)
         parser.add_argument("--reward-shaping", type=str, default="basic")
+        parser.add_argument("--episode-mode", type=str, default="life")
         parser.add_argument("--frame-skip", type=int, default=4)
         parser.add_argument("--frame-stack", type=int, default=4)
         parser.add_argument("--debug", action="store_true")

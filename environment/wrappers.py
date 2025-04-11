@@ -118,25 +118,39 @@ class RewardClipping(gym.RewardWrapper):
 
 class EpisodicLifeEnv(gym.Wrapper):
     """
-    Make end-of-life == end-of-episode, but only reset on true game over.
-    This wrapper is designed to encourage the agent to learn from ball loss.
+    Controls episode termination based on the specified mode.
+    
+    Modes:
+    - "ball": Episodes end on any ball loss, even with saver active
+    - "life": Episodes end on ball loss without saver (default behavior)
+    - "game": Episodes only end on game over (all lives lost)
+    
+    This wrapper is designed to encourage the agent to learn from different types of mistakes.
     """
     
-    def __init__(self, env):
+    def __init__(self, env, episode_mode="life"):
         """
         Initialize the wrapper.
         
         Args:
             env: The environment to wrap
+            episode_mode: When to end episodes - "ball", "life", or "game"
         """
         super().__init__(env)
         self.lives = 0
         self.was_real_done = True
+        self.prev_lost_during_saver = 0
+        self.episode_mode = episode_mode
+        
+        # Validate episode mode
+        valid_modes = ["ball", "life", "game"]
+        if self.episode_mode not in valid_modes:
+            raise ValueError(f"Episode mode must be one of {valid_modes}, got {self.episode_mode}")
         
     def step(self, action):
         """
         Step the environment with the given action.
-        End episode when a life is lost, but only reset on true game over.
+        End episode based on the episode_mode setting.
         
         Args:
             action: The action to take
@@ -147,16 +161,36 @@ class EpisodicLifeEnv(gym.Wrapper):
         obs, reward, done, truncated, info = self.env.step(action)
         self.was_real_done = done
         
-        # Check current lives
-        lives = self.env.unwrapped.pyboy.game_wrapper.balls_left
+        # Get current game state
+        game_wrapper = self.env.unwrapped.pyboy.game_wrapper
+        lives = game_wrapper.balls_left
+        lost_during_saver = game_wrapper.lost_ball_during_saver
         
-        # Did the agent lose a life?
-        if lives < self.lives:
-            # End episode, but don't reset
-            done = True
-            
+        # Default done condition
+        episode_done = done
+        
+        # Determine if episode should end based on mode
+        if self.episode_mode == "ball" and (lives < self.lives or lost_during_saver > self.prev_lost_during_saver):
+            # End episode on any ball loss, even with saver
+            episode_done = True
+            # Reset tracking on episode end
+            if not self.was_real_done:
+                game_wrapper.reset_tracking()
+        elif self.episode_mode == "life" and lives < self.lives:
+            # End episode on life loss without saver
+            episode_done = True
+            # Reset tracking on episode end
+            if not self.was_real_done:
+                game_wrapper.reset_tracking()
+        elif self.episode_mode == "game":
+            # Only end episode on game over
+            episode_done = self.was_real_done
+        
+        # Update tracking variables
         self.lives = lives
-        return obs, reward, done, truncated, info
+        self.prev_lost_during_saver = lost_during_saver
+        
+        return obs, reward, episode_done, truncated, info
         
     def reset(self, **kwargs):
         """
@@ -175,7 +209,11 @@ class EpisodicLifeEnv(gym.Wrapper):
             obs = self.env.unwrapped._get_obs()
             info = self.env.unwrapped._get_info()
             
-        self.lives = self.env.unwrapped.pyboy.game_wrapper.balls_left
+        # Update tracking variables
+        game_wrapper = self.env.unwrapped.pyboy.game_wrapper
+        self.lives = game_wrapper.balls_left
+        self.prev_lost_during_saver = game_wrapper.lost_ball_during_saver
+        
         return obs, info
 
 
