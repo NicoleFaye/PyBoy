@@ -282,38 +282,32 @@ class RewardShaping:
         
     @classmethod
     def comprehensive(cls, current_fitness, previous_fitness, game_wrapper, frames_played=0):
-        """Comprehensive reward that considers multiple game aspects."""
-        # Scale down the score reward with logarithmic scaling
+        """Comprehensive reward that promotes long survival and steady progress."""
+        # Log-scaled score difference
         score_diff = current_fitness - previous_fitness
         if score_diff > 0:
-            # Log scaling helps normalize large score differences
-            # Add 1 to avoid log(0) errors
             import numpy as np
             score_reward = 10 * np.log(1 + score_diff / 100)
         else:
             score_reward = 0
-        
-        # Additional rewards
+
+        # Ball alive reward and survival bonus
+        ball_alive_reward = 50  # Increased to encourage survival
+        time_bonus = min(100, frames_played / 800)  # Increased and faster ramp-up
+
         additional_reward = 0
-        
-        # Significantly increase the reward for keeping the ball in play
-        ball_alive_reward = 25  # Up from 5
-        
-        # Add progressive rewards for keeping the ball alive longer
-        # This encourages the agent to develop strategies for longer ball survival
-        time_bonus = min(50, frames_played / 1000)  # Cap at 50
-        
-        # Reward for Pokemon catches - increase substantially
+
+        # Catching Pokémon
         if game_wrapper.pokemon_caught_in_session > cls._prev_caught:
-            additional_reward += 1000  # Up from 500
+            additional_reward += 500  # Reduced to balance survival priority
             cls._prev_caught = game_wrapper.pokemon_caught_in_session
-            
-        # Reward for evolution success
+
+        # Evolution rewards
         if game_wrapper.evolution_success_count > cls._prev_evolutions:
-            additional_reward += 700  # Up from 300
+            additional_reward += 1000
             cls._prev_evolutions = game_wrapper.evolution_success_count
-            
-        # Reward for bonus stages - increase to make them more attractive
+
+        # Stage completion
         total_stages_completed = (
             game_wrapper.diglett_stages_completed +
             game_wrapper.gengar_stages_completed +
@@ -321,26 +315,22 @@ class RewardShaping:
             game_wrapper.seel_stages_completed +
             game_wrapper.mewtwo_stages_completed
         )
-        
         if total_stages_completed > cls._prev_stages_completed:
-            additional_reward += 500  # Up from 200
+            additional_reward += 1500
             cls._prev_stages_completed = total_stages_completed
-            
-        # Reward for ball upgrades - increase to encourage seeking upgrades
+
+        # Ball upgrades
         ball_upgrades = (
             game_wrapper.great_ball_upgrades +
             game_wrapper.ultra_ball_upgrades +
             game_wrapper.master_ball_upgrades
         )
         if ball_upgrades > cls._prev_ball_upgrades:
-            additional_reward += 300  # Up from 100
+            additional_reward += 200
             cls._prev_ball_upgrades = ball_upgrades
 
-        # Combine all reward components
         total_reward = score_reward + additional_reward + ball_alive_reward + time_bonus
-        
-        # log each reward component for debugging
-        #if score_reward > 0 or additional_reward > 0:
-            #print(f"Score: {score_reward:.1f}, Events: {additional_reward}, Alive: {ball_alive_reward}, Time: {time_bonus:.1f}")
-        
+
+        #print(f"Score: {score_reward:.1f}, Events: {additional_reward}, Alive: {ball_alive_reward}, Time: {time_bonus:.1f}")
+
         return total_reward
