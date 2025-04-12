@@ -50,6 +50,7 @@ class PokemonPinballEnv(gym.Env):
         
         self._fitness = 0
         self._previous_fitness = 0
+        self._frames_played = 0  # Track frames played in current episode
         
         self.debug = debug
         self.headless = headless
@@ -112,6 +113,9 @@ class PokemonPinballEnv(gym.Env):
         # Cache pyboy reference locally
         pyboy = self.pyboy
         pyboy.tick(1, not self.headless, False)
+        
+        # Increment frame counter
+        self._frames_played += 1
             
         # Get game state
         self._calculate_fitness()
@@ -121,7 +125,7 @@ class PokemonPinballEnv(gym.Env):
         
         # Apply reward shaping - optimize by avoiding property access
         if self.reward_shaping:
-            reward = self.reward_shaping(self._fitness, self._previous_fitness, self._game_wrapper)
+            reward = self.reward_shaping(self._fitness, self._previous_fitness, self._game_wrapper, self._frames_played)
         else:
             reward = self._fitness - self._previous_fitness
             
@@ -163,6 +167,7 @@ class PokemonPinballEnv(gym.Env):
         # Reset fitness tracking
         self._fitness = 0
         self._previous_fitness = 0
+        self._frames_played = 0  # Reset frame counter
         
         # Get observation and info once
         observation = self._get_obs()
@@ -258,12 +263,12 @@ class RewardShaping:
     _prev_ball_upgrades = 0
     
     @staticmethod
-    def basic(current_fitness, previous_fitness, game_wrapper):
+    def basic(current_fitness, previous_fitness, game_wrapper, frames_played=0):
         """Basic reward shaping based on score difference."""
         return current_fitness - previous_fitness
         
     @classmethod
-    def catch_focused(cls, current_fitness, previous_fitness, game_wrapper):
+    def catch_focused(cls, current_fitness, previous_fitness, game_wrapper, frames_played=0):
         """Reward focused on catching Pokemon."""
         score_reward = (current_fitness - previous_fitness) * 0.5
         
@@ -276,28 +281,39 @@ class RewardShaping:
         return score_reward + catch_reward
         
     @classmethod
-    def comprehensive(cls, current_fitness, previous_fitness, game_wrapper):
+    def comprehensive(cls, current_fitness, previous_fitness, game_wrapper, frames_played=0):
         """Comprehensive reward that considers multiple game aspects."""
-        # Base reward from score
-        score_reward = (current_fitness - previous_fitness)
+        # Scale down the score reward with logarithmic scaling
+        score_diff = current_fitness - previous_fitness
+        if score_diff > 0:
+            # Log scaling helps normalize large score differences
+            # Add 1 to avoid log(0) errors
+            import numpy as np
+            score_reward = 10 * np.log(1 + score_diff / 100)
+        else:
+            score_reward = 0
         
         # Additional rewards
         additional_reward = 0
         
-        # Reward for keeping the ball in play
-        ball_alive_reward = 5
+        # Significantly increase the reward for keeping the ball in play
+        ball_alive_reward = 25  # Up from 5
         
-        # Reward for Pokemon catches
+        # Add progressive rewards for keeping the ball alive longer
+        # This encourages the agent to develop strategies for longer ball survival
+        time_bonus = min(50, frames_played / 1000)  # Cap at 50
+        
+        # Reward for Pokemon catches - increase substantially
         if game_wrapper.pokemon_caught_in_session > cls._prev_caught:
-            additional_reward += 500
+            additional_reward += 1000  # Up from 500
             cls._prev_caught = game_wrapper.pokemon_caught_in_session
             
         # Reward for evolution success
         if game_wrapper.evolution_success_count > cls._prev_evolutions:
-            additional_reward += 300
+            additional_reward += 700  # Up from 300
             cls._prev_evolutions = game_wrapper.evolution_success_count
             
-        # Reward for bonus stages
+        # Reward for bonus stages - increase to make them more attractive
         total_stages_completed = (
             game_wrapper.diglett_stages_completed +
             game_wrapper.gengar_stages_completed +
@@ -307,17 +323,24 @@ class RewardShaping:
         )
         
         if total_stages_completed > cls._prev_stages_completed:
-            additional_reward += 200
+            additional_reward += 500  # Up from 200
             cls._prev_stages_completed = total_stages_completed
             
-        # Reward for ball upgrades
+        # Reward for ball upgrades - increase to encourage seeking upgrades
         ball_upgrades = (
             game_wrapper.great_ball_upgrades +
             game_wrapper.ultra_ball_upgrades +
             game_wrapper.master_ball_upgrades
         )
         if ball_upgrades > cls._prev_ball_upgrades:
-            additional_reward += 100
+            additional_reward += 300  # Up from 100
             cls._prev_ball_upgrades = ball_upgrades
-            
-        return score_reward + additional_reward + ball_alive_reward
+
+        # Combine all reward components
+        total_reward = score_reward + additional_reward + ball_alive_reward + time_bonus
+        
+        # log each reward component for debugging
+        #if score_reward > 0 or additional_reward > 0:
+            #print(f"Score: {score_reward:.1f}, Events: {additional_reward}, Alive: {ball_alive_reward}, Time: {time_bonus:.1f}")
+        
+        return total_reward
