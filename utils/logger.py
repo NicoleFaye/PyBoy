@@ -221,7 +221,6 @@ class MetricLogger:
         total_time = np.round(self.record_time - self.start_time, 3)
         
         # Print progress to console
-        """
         print(
             f"Episode {episode} - "
             f"Step {step} - "
@@ -235,6 +234,7 @@ class MetricLogger:
             f"Time {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
+        """
         # Write to log file
         with open(self.save_log, "a") as f:
             f.write(
