@@ -85,6 +85,79 @@ class NormalizedObservation(gym.ObservationWrapper):
         return obs.flatten()
 
 
+class NormalizedCNNObservation(gym.ObservationWrapper):
+    """
+    Normalize observations to improve training stability.
+    Preserves the 2D structure for CNN compatibility.
+    """
+    
+    def __init__(self, env):
+        """
+        Initialize the wrapper.
+        
+        Args:
+            env: The environment to wrap
+        """
+        super().__init__(env)
+        # Keep the 2D structure but add a channel dimension for CNN
+        shape = self.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1.0, shape=(1, shape[0], shape[1]), dtype=np.float32
+        )
+        
+    def observation(self, observation):
+        """
+        Normalize the observation and add channel dimension.
+        
+        Args:
+            observation: The observation to normalize
+            
+        Returns:
+            The normalized observation
+        """
+        # Normalize to [0, 1]
+        obs = observation.astype(np.float32) / 255.0
+        # Add channel dimension (CHW format for PyTorch)
+        return obs.reshape(1, obs.shape[0], obs.shape[1])
+
+
+class NormalizedLSTMObservation(gym.ObservationWrapper):
+    """
+    Normalize observations to improve training stability.
+    Flattens the observation for LSTM compatibility.
+    """
+    
+    def __init__(self, env):
+        """
+        Initialize the wrapper.
+        
+        Args:
+            env: The environment to wrap
+        """
+        super().__init__(env)
+        # Flatten the observation space but keep it as a single step
+        # for LSTM policies
+        shape = self.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1.0, shape=(shape[0] * shape[1],), dtype=np.float32
+        )
+        
+    def observation(self, observation):
+        """
+        Normalize the observation and flatten it.
+        
+        Args:
+            observation: The observation to normalize
+            
+        Returns:
+            The normalized observation
+        """
+        # Normalize to [0, 1]
+        obs = observation.astype(np.float32) / 255.0
+        # Flatten 
+        return obs.flatten()
+
+
 class RewardClipping(gym.RewardWrapper):
     """
     Clip rewards to a specific range to improve training stability.
@@ -220,45 +293,79 @@ class EpisodicLifeEnv(gym.Wrapper):
 class FrameStack(gym.ObservationWrapper):
     """
     Stack frames to provide a temporal context for the agent.
-    Custom implementation of frame stacking for flattened observations.
+    Supports different stacking methods based on policy type.
     """
     
-    def __init__(self, env, num_stack):
+    def __init__(self, env, num_stack, policy_type="mlp"):
         """
         Initialize the wrapper.
         
         Args:
             env: The environment to wrap
             num_stack: Number of frames to stack
+            policy_type: Type of policy network ("mlp", "cnn", or "lstm")
         """
         super().__init__(env)
         self.num_stack = num_stack
         self.frames = deque(maxlen=num_stack)
+        self.policy_type = policy_type
         
-        # The observation shape should be flattened
-        # After stacking, it will be concatenated
+        # Configure observation space based on policy type
         old_shape = env.observation_space.shape
-        self.observation_space = gym.spaces.Box(
-            low=0,
-            high=1.0,
-            shape=(old_shape[0] * num_stack,),
-            dtype=np.float32
-        )
+        
+        if policy_type == "cnn":
+            # For CNN, stack frames along the channel dimension
+            # Input shape should be (C, H, W) where C is channels
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=1.0,
+                shape=(num_stack, old_shape[1], old_shape[2]),  # Stack as channels
+                dtype=np.float32
+            )
+        elif policy_type == "lstm":
+            # For LSTM, we'll maintain the sequence structure
+            # But still use the flattened observation format
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=1.0,
+                shape=(num_stack, old_shape[0]),  # Sequence of flattened observations
+                dtype=np.float32
+            )
+        else:  # Default MLP
+            # For MLP, concatenate flattened observations
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=1.0,
+                shape=(old_shape[0] * num_stack,),  # Concatenated flat vector
+                dtype=np.float32
+            )
         
     def observation(self, observation):
         """
-        Stack frames by concatenating flattened observations.
+        Stack frames based on policy type.
         
         Args:
-            observation: The current flattened observation
+            observation: The current observation (already preprocessed)
             
         Returns:
-            The stacked frames as a single flattened vector
+            The stacked frames in the format needed by the policy
         """
         self.frames.append(observation)
         
-        # Concatenate flattened observations
-        return np.concatenate(list(self.frames))
+        if self.policy_type == "cnn":
+            # For CNN, stack along channel dimension
+            # Each observation should already have shape (1, H, W)
+            return np.concatenate(list(self.frames), axis=0)
+        elif self.policy_type == "lstm":
+            # For LSTM, return as sequence
+            frames_list = list(self.frames)
+            # Pad with zeros if needed
+            while len(frames_list) < self.num_stack:
+                frames_list.append(np.zeros_like(frames_list[0]))
+            return np.array(frames_list)
+        else:  # Default MLP
+            # For MLP, concatenate flattened vectors
+            return np.concatenate(list(self.frames))
         
     def reset(self, **kwargs):
         """
@@ -279,4 +386,9 @@ class FrameStack(gym.ObservationWrapper):
         for _ in range(self.num_stack):
             self.frames.append(observation)
             
-        return np.concatenate(list(self.frames)), info
+        if self.policy_type == "cnn":
+            return np.concatenate(list(self.frames), axis=0), info
+        elif self.policy_type == "lstm":
+            return np.array(list(self.frames)), info
+        else:  # Default MLP
+            return np.concatenate(list(self.frames)), info

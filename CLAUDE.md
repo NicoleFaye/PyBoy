@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Example: `python train.py --checkpoint checkpoints/ppo_comprehensive/final.zip --model-name ppo_comprehensive`
   - Will automatically find the most recent checkpoint if the specified file doesn't exist
 - PyBoy scripts: `python -m pyboy [ROM_PATH] [OPTIONS]`
+- Check logs of recent runs base command: cat ./checkpoints/*/*.log
 
 ## Code Style
 - Follow Google Python style guide

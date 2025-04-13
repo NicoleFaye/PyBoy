@@ -132,6 +132,7 @@ class MultiTrainer:
         """
         # Extract key components for the directory name
         algorithm = config.get('algorithm', 'unknown')
+        policy_type = config.get('policy_type', 'mlp')
         reward_shaping = config.get('reward_shaping', 'comprehensive')
         episode_mode = config.get('episode_mode', 'ball')
         gamma = str(config.get('gamma', '0.99')).replace('.', '')
@@ -141,7 +142,7 @@ class MultiTrainer:
         timestamp = datetime.datetime.now().strftime("%m%d_%H%M")
         
         # Construct the directory name
-        dir_name = f"{algorithm}_{reward_shaping}_{episode_mode}_g{gamma}_lr{lr}_{timestamp}"
+        dir_name = f"{algorithm}_{policy_type}_{reward_shaping}_{episode_mode}_g{gamma}_lr{lr}_{timestamp}"
         
         return Path("checkpoints") / dir_name
         
@@ -194,6 +195,16 @@ class MultiTrainer:
         # Create checkpoint directory first
         checkpoint_dir = self.generate_checkpoint_path(config)
         
+        # Check for required dependencies based on config
+        if config.get('policy_type') == 'lstm' and config.get('algorithm') == 'ppo':
+            try:
+                import importlib
+                importlib.import_module('sb3_contrib')
+            except ImportError:
+                print(f"Warning: PPO with LSTM policy requires sb3_contrib package.")
+                print(f"Consider installing it with: pip install sb3_contrib")
+                print(f"The training will fall back to MLP policy.")
+        
         # Build command with the checkpoint directory
         cmd = self.build_command(config, checkpoint_dir)
         cmd_str = " ".join(cmd)
@@ -208,6 +219,18 @@ class MultiTrainer:
         
         output_file = open(f"{checkpoint_dir}/training.log", "w")
         
+        # Check if stable-baselines3 is installed
+        try:
+            import stable_baselines3
+        except ImportError as e:
+            # Write error to the log file instead of starting the process
+            output_file.write("Error: Stable-Baselines3 is not installed. Please install it with:\n")
+            output_file.write("pip install stable-baselines3[extra]\n")
+            output_file.write(str(e))
+            output_file.close()
+            print(f"Error: Stable-Baselines3 not installed. Skipping {checkpoint_dir.name}")
+            return None
+            
         # Start process
         process = subprocess.Popen(
             cmd,

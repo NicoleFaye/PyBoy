@@ -52,6 +52,8 @@ def parse_args(args=None):
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
     parser.add_argument("--gamma", type=float, default=0.9, help="Discount factor")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility (default: use system time)")
+    parser.add_argument("--policy-type", type=str, default="mlp", choices=["mlp", "cnn", "lstm"],
+                        help="Policy network architecture to use")
     parser.add_argument("--info-level", type=int, default=2,
                         help="Level of information to log (0: no info, 1: basic info, 2: detailed info)")
     
@@ -102,8 +104,22 @@ def setup_environment(args):
     # Apply wrappers
     env = SkipFrame(env, skip=args.frame_skip)
     env = EpisodicLifeEnv(env, episode_mode=args.episode_mode)
-    env = NormalizedObservation(env)
-    env = FrameStack(env, num_stack=args.frame_stack)
+    
+    # Apply observation wrappers based on policy type
+    if args.policy_type == "cnn":
+        # For CNN, maintain the 2D structure of the observations
+        # and normalize the values but don't flatten
+        from environment.wrappers import NormalizedCNNObservation
+        env = NormalizedCNNObservation(env)
+    elif args.policy_type == "lstm":
+        # For LSTM, flatten the observations but structure them for sequence processing
+        from environment.wrappers import NormalizedLSTMObservation
+        env = NormalizedLSTMObservation(env)
+    else:
+        # For MLP, flatten the observations 
+        env = NormalizedObservation(env)
+    
+    env = FrameStack(env, num_stack=args.frame_stack, policy_type=args.policy_type)
     
     return env
 
@@ -133,7 +149,8 @@ def setup_agent(args, env, save_dir, seed=None):
             algorithm=args.algorithm.upper(),
             learning_rate=args.lr,
             gamma=args.gamma,
-            seed=seed
+            seed=seed,
+            policy_type=args.policy_type
         )
     except ImportError:
         print("Error: Stable-Baselines3 is not installed. Please install it with:")
@@ -156,6 +173,7 @@ def train(agent, env, args, save_dir):
     # Collect metadata about this training run for the logger
     metadata = {
         'algorithm': args.algorithm,
+        'policy_type': args.policy_type,
         'reward_shaping': args.reward_shaping,
         'episode_mode': args.episode_mode,
         'frame_skip': args.frame_skip,
@@ -210,7 +228,7 @@ def train(agent, env, args, save_dir):
     
     total_timesteps = args.episodes * 1000  # Approximation of total timesteps
     
-    print(f"Training with {args.algorithm.upper()} for {total_timesteps} timesteps, starting from {current_timestep}")
+    print(f"Training with {args.algorithm.upper()} using {args.policy_type.upper()} policy for {total_timesteps} timesteps, starting from {current_timestep}")
     print(f"Reward shaping: {args.reward_shaping}, Episode mode: {args.episode_mode}")
     print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
@@ -297,7 +315,7 @@ def train_with_episode_limit(agent, env, args, save_dir):
     # The EpisodeCountCallback will stop training when it reaches the episode limit
     max_timesteps = 100_000_000  # 100 million timesteps should be more than enough
     
-    print(f"Training with {args.algorithm.upper()} for {args.episodes} episodes")
+    print(f"Training with {args.algorithm.upper()} using {args.policy_type.upper()} policy for {args.episodes} episodes")
     print(f"Reward shaping: {args.reward_shaping}, Episode mode: {args.episode_mode}")
     print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
@@ -466,6 +484,7 @@ def main():
     # Collect metadata about this training run for the logger
     metadata = {
         'algorithm': args.algorithm,
+        'policy_type': args.policy_type,
         'reward_shaping': args.reward_shaping,
         'episode_mode': args.episode_mode,
         'frame_skip': args.frame_skip,

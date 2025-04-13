@@ -154,6 +154,7 @@ class SB3Agent(BaseAgent):
         action_dim: int,
         save_dir: Path,
         algorithm: str = "DQN",
+        policy_type: str = "mlp",
         learning_rate: float = 0.0001,
         buffer_size: int = 100000,
         learning_starts: int = 10000,
@@ -171,6 +172,7 @@ class SB3Agent(BaseAgent):
             action_dim: Dimensions of the action space
             save_dir: Directory to save models and logs
             algorithm: RL algorithm to use ('DQN', 'A2C', 'PPO')
+            policy_type: Type of policy network architecture ('mlp', 'cnn', 'lstm')
             learning_rate: Learning rate
             buffer_size: Size of the replay buffer (primarily for DQN, stored for all)
             learning_starts: Number of steps before learning starts (primarily for DQN, stored for all)
@@ -189,6 +191,7 @@ class SB3Agent(BaseAgent):
             )
             
         self.algorithm = algorithm
+        self.policy_type = policy_type
         self.buffer_size = buffer_size
         self.learning_starts = learning_starts
         self.batch_size = batch_size
@@ -196,6 +199,71 @@ class SB3Agent(BaseAgent):
         self.verbose = verbose
         self.logger = None  
         self.model = None  
+        
+        # Set appropriate feature extractor based on policy_type
+        if self.policy_type == "cnn":
+            # Use custom CNN feature extractor instead of NatureCNN
+            try:
+                from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+                import torch.nn as nn
+                import gym
+                import torch
+                
+                # Define a custom CNN feature extractor
+                class CustomCNN(BaseFeaturesExtractor):
+                    """
+                    Custom CNN feature extractor for Pokemon Pinball.
+                    Works with small game area dimensions (16x20).
+                    """
+                    
+                    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 512):
+                        super().__init__(observation_space, features_dim)
+                        
+                        # Extract information from observation space
+                        n_input_channels = observation_space.shape[0]  # Number of stacked frames
+                        
+                        # Build CNN for small input dimensions
+                        self.cnn = nn.Sequential(
+                            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=1),
+                            nn.ReLU(),
+                            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=0),
+                            nn.ReLU(),
+                            nn.Flatten(),
+                        )
+                        
+                        # Compute shape by doing one forward pass
+                        with torch.no_grad():
+                            sample = torch.as_tensor(observation_space.sample()[None]).float()
+                            n_flatten = self.cnn(sample).shape[1]
+                        
+                        self.linear = nn.Sequential(
+                            nn.Linear(n_flatten, features_dim),
+                            nn.ReLU(),
+                        )
+                        
+                    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+                        return self.linear(self.cnn(observations))
+                
+                if not self.policy_kwargs:
+                    self.policy_kwargs = {
+                        "features_extractor_class": CustomCNN,
+                        "features_extractor_kwargs": {"features_dim": 512}
+                    }
+            except ImportError:
+                print("Could not import PyTorch or SB3 modules. Falling back to MLP policy.")
+                self.policy_type = "mlp"
+                self.policy_kwargs = {}
+                
+        elif self.policy_type == "lstm":
+            # Configure for LSTM
+            if self.algorithm == "DQN":
+                # DQN doesn't support LSTM, so don't add LSTM-specific kwargs
+                self.policy_kwargs = {}
+            elif not self.policy_kwargs:
+                self.policy_kwargs = {
+                    "lstm_hidden_size": 256,
+                    "enable_critic_lstm": True
+                }
         
         self.params = {
             "learning_rate": learning_rate,
@@ -252,12 +320,42 @@ class SB3Agent(BaseAgent):
         self.max_episodes = max_episodes
         set_random_seed(self.params["seed"])
         
+        # Map policy type to SB3 policy string
+        if self.policy_type == "cnn":
+            policy_name = "CnnPolicy"
+        elif self.policy_type == "lstm":
+            # For LSTM, we need to use a RecurrentPPO if algorithm is PPO
+            if self.algorithm == "PPO":
+                try:
+                    from sb3_contrib import RecurrentPPO
+                    policy_name = "MlpLstmPolicy"
+                    # Replace the algorithm class
+                    self.model = RecurrentPPO(policy_name, env, **self.params)
+                    self.is_initialized = True
+                    return  # Skip the normal initialization below
+                except ImportError:
+                    print("RecurrentPPO requires sb3_contrib. Please install it with:")
+                    print("pip install sb3_contrib")
+                    print("Falling back to standard MlpPolicy...")
+                    self.policy_type = "mlp"
+                    policy_name = "MlpPolicy"
+            elif self.algorithm == "DQN":
+                # DQN doesn't support LSTM policies, so fall back to MLP
+                print("DQN does not support LSTM policies. Falling back to MlpPolicy...")
+                self.policy_type = "mlp"
+                policy_name = "MlpPolicy"
+            else:
+                policy_name = "MlpLstmPolicy"
+        else:
+            policy_name = "MlpPolicy"
+        
+        # Create the model with the appropriate policy
         if self.algorithm == "DQN":
-            self.model = DQN("MlpPolicy", env, **self.params)
+            self.model = DQN(policy_name, env, **self.params)
         elif self.algorithm == "A2C":
-            self.model = A2C("MlpPolicy", env, **self.params)
+            self.model = A2C(policy_name, env, **self.params)
         elif self.algorithm == "PPO":
-            self.model = PPO("MlpPolicy", env, **self.params)
+            self.model = PPO(policy_name, env, **self.params)
             
         self.is_initialized = True
         
@@ -277,6 +375,8 @@ class SB3Agent(BaseAgent):
         # Set up the callback chain
         from stable_baselines3.common.callbacks import CallbackList
         self.callback = CallbackList(callbacks) if callbacks else None
+        # Store callback list for train method
+        self.callbacks = callbacks
         
     def train(self, total_timesteps=10000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None):
         """
@@ -295,7 +395,7 @@ class SB3Agent(BaseAgent):
             
         # Configure a checkpoint callback if requested
         from stable_baselines3.common.callbacks import CheckpointCallback
-        callbacks = [self.callback] if self.callback else []
+        callbacks = self.callbacks.copy() if hasattr(self, 'callbacks') and self.callbacks else []
         
         if checkpoint_freq > 0 and checkpoint_path:
             # Add a checkpoint callback to save models periodically
