@@ -52,6 +52,8 @@ def parse_args(args=None):
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
     parser.add_argument("--gamma", type=float, default=0.9, help="Discount factor")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility (default: use system time)")
+    parser.add_argument("--info-level", type=int, default=2,
+                        help="Level of information to log (0: no info, 1: basic info, 2: detailed info)")
     
     parsed_args = parser.parse_args(args)
     
@@ -94,7 +96,7 @@ def setup_environment(args):
         debug=args.debug, 
         headless=args.headless,
         reward_shaping=reward_shaping,
-        info_level=2  
+        info_level=args.info_level,
     )
     
     # Apply wrappers
