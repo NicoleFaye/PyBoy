@@ -129,6 +129,16 @@ class PokemonPinballEnv(gym.Env):
         else:
             reward = self._fitness - self._previous_fitness
             
+        # Track maximum reward for debugging
+        if not hasattr(self, "max_step_reward") or reward > self.max_step_reward:
+            self.max_step_reward = reward
+            if reward > 200:  # Log only for significant rewards
+                print(f"REWARD_SPIKE: Frame {self._frames_played}, New max reward: {reward}, Score: {self._fitness}")
+                
+        # Track extreme cases - very small or very large rewards
+        if getattr(self, "debug", False) and (abs(reward) < 0.001 or abs(reward) > 1000):
+            print(f"REWARD_EXTREME: Frame {self._frames_played}, Reward: {reward}, Score: {self._fitness}")
+            
         # Get observation
         observation = self._get_obs()
         
@@ -287,24 +297,30 @@ class RewardShaping:
         score_diff = current_fitness - previous_fitness
         if score_diff > 0:
             import numpy as np
-            score_reward = 10 * np.log(1 + score_diff / 100)
+            score_reward = 15 * np.log(1 + score_diff / 100)  # Increased from 10 to 15
         else:
             score_reward = 0
 
-        # Ball alive reward and survival bonus
-        ball_alive_reward = 50  # Increased to encourage survival
-        time_bonus = min(100, frames_played / 800)  # Increased and faster ramp-up
+        # Ball alive reward and survival bonus - reduced to create more granular rewards
+        ball_alive_reward = 25  # Reduced from 50 to 25 for more nuanced rewards
+        time_bonus = min(120, frames_played / 400)  # Faster ramp-up and higher ceiling
 
         additional_reward = 0
+        # For tracking specific reward events
+        reward_sources = {}
 
         # Catching Pokémon
         if game_wrapper.pokemon_caught_in_session > cls._prev_caught:
-            additional_reward += 500  # Reduced to balance survival priority
+            pokemon_reward = 500  # Maintained at 500
+            additional_reward += pokemon_reward
+            reward_sources["pokemon_catch"] = pokemon_reward
             cls._prev_caught = game_wrapper.pokemon_caught_in_session
 
         # Evolution rewards
         if game_wrapper.evolution_success_count > cls._prev_evolutions:
-            additional_reward += 1000
+            evolution_reward = 1000
+            additional_reward += evolution_reward
+            reward_sources["evolution"] = evolution_reward
             cls._prev_evolutions = game_wrapper.evolution_success_count
 
         # Stage completion
@@ -316,7 +332,9 @@ class RewardShaping:
             game_wrapper.mewtwo_stages_completed
         )
         if total_stages_completed > cls._prev_stages_completed:
-            additional_reward += 1500
+            stage_reward = 1500
+            additional_reward += stage_reward
+            reward_sources["stage_completion"] = stage_reward
             cls._prev_stages_completed = total_stages_completed
 
         # Ball upgrades
@@ -326,11 +344,51 @@ class RewardShaping:
             game_wrapper.master_ball_upgrades
         )
         if ball_upgrades > cls._prev_ball_upgrades:
-            additional_reward += 200
+            upgrade_reward = 200
+            additional_reward += upgrade_reward
+            reward_sources["ball_upgrade"] = upgrade_reward
             cls._prev_ball_upgrades = ball_upgrades
 
+        # Combine all rewards
+        reward_sources["score"] = score_reward
+        reward_sources["ball_alive"] = ball_alive_reward
+        reward_sources["time_bonus"] = time_bonus
         total_reward = score_reward + additional_reward + ball_alive_reward + time_bonus
 
-        #print(f"Score: {score_reward:.1f}, Events: {additional_reward}, Alive: {ball_alive_reward}, Time: {time_bonus:.1f}")
+        # Create a detailed log of rewards when significant events happen or periodically
+        should_log = (
+            reward_sources.get("pokemon_catch") or 
+            reward_sources.get("evolution") or 
+            reward_sources.get("stage_completion") or 
+            reward_sources.get("ball_upgrade") or
+            frames_played % 500 == 0  # Log every 500 frames
+        )
+            
+        if should_log:
+            log_message = (
+                f"Frame {frames_played} | "
+                f"Score: {current_fitness} | "
+                f"Rewards breakdown -> Score: {score_reward:.1f}, "
+                f"Events: {additional_reward}, "
+                f"Alive: {ball_alive_reward}, "
+                f"Time: {time_bonus:.1f} | "
+                f"Total: {total_reward:.1f}"
+            )
+            
+            # Add detailed event info if present
+            events = []
+            if "pokemon_catch" in reward_sources:
+                events.append(f"Pokémon caught (+{reward_sources['pokemon_catch']})")
+            if "evolution" in reward_sources:
+                events.append(f"Evolution success (+{reward_sources['evolution']})")
+            if "stage_completion" in reward_sources:
+                events.append(f"Stage completed (+{reward_sources['stage_completion']})")
+            if "ball_upgrade" in reward_sources:
+                events.append(f"Ball upgraded (+{reward_sources['ball_upgrade']})")
+                
+            if events:
+                log_message += f" | Events: {', '.join(events)}"
+                
+            print(f"REWARD_LOG: {log_message}")
 
         return total_reward

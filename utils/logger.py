@@ -134,6 +134,55 @@ class MetricLogger:
             q: The Q-value (if available)
             info: Additional info dict from the environment (if available)
         """
+        # Track reward distribution data
+        if not hasattr(self, "reward_distribution"):
+            self.reward_distribution = {
+                "total": 0,
+                "positive": 0,
+                "negative": 0,
+                "zero": 0,
+                "max": 0,
+                "min": 0,
+                "bins": {
+                    "0": 0,          # zero
+                    "0-1": 0,        # small
+                    "1-10": 0,       # modest
+                    "10-100": 0,     # medium
+                    "100-500": 0,    # large
+                    "500+": 0,       # huge
+                    "negative": 0    # negative
+                }
+            }
+            
+        # Update reward distribution
+        self.reward_distribution["total"] += 1
+        if reward > 0:
+            self.reward_distribution["positive"] += 1
+            if reward > self.reward_distribution["max"]:
+                self.reward_distribution["max"] = reward
+            
+            # Update distribution bins
+            if reward < 1:
+                self.reward_distribution["bins"]["0-1"] += 1
+            elif reward < 10:
+                self.reward_distribution["bins"]["1-10"] += 1
+            elif reward < 100:
+                self.reward_distribution["bins"]["10-100"] += 1
+            elif reward < 500:
+                self.reward_distribution["bins"]["100-500"] += 1
+            else:
+                self.reward_distribution["bins"]["500+"] += 1
+                
+        elif reward < 0:
+            self.reward_distribution["negative"] += 1
+            if reward < self.reward_distribution["min"]:
+                self.reward_distribution["min"] = reward
+            self.reward_distribution["bins"]["negative"] += 1
+        else:
+            self.reward_distribution["zero"] += 1
+            self.reward_distribution["bins"]["0"] += 1
+        
+        # Accumulate reward for the episode
         self.curr_ep_reward += reward
         self.curr_ep_length += 1
         
@@ -282,6 +331,26 @@ class MetricLogger:
             elif isinstance(obj, dict):
                 return {key: convert_to_native_types(value) for key, value in obj.items()}
             return obj
+            
+        # Print reward distribution stats if available
+        if hasattr(self, "reward_distribution"):
+            # Calculate percentages for bins
+            total = self.reward_distribution["total"]
+            if total > 0:
+                bins = self.reward_distribution["bins"]
+                percentages = {k: (v * 100.0 / total) for k, v in bins.items()}
+                
+                # Print distribution summary
+                print("\nREWARD_DISTRIBUTION_SUMMARY:")
+                print(f"  Total rewards: {total}")
+                print(f"  Positive: {self.reward_distribution['positive']} ({self.reward_distribution['positive'] * 100.0 / total:.1f}%)")
+                print(f"  Zero: {self.reward_distribution['zero']} ({self.reward_distribution['zero'] * 100.0 / total:.1f}%)")
+                print(f"  Negative: {self.reward_distribution['negative']} ({self.reward_distribution['negative'] * 100.0 / total:.1f}%)")
+                print(f"  Max reward: {self.reward_distribution['max']}")
+                print(f"  Min reward: {self.reward_distribution['min']}")
+                print("  Distribution by magnitude:")
+                for bin_name, count in bins.items():
+                    print(f"    {bin_name}: {count} ({percentages[bin_name]:.1f}%)")
 
         # Create metrics data
         metrics_data = {
@@ -295,6 +364,10 @@ class MetricLogger:
             "q_values": self.ep_avg_qs,
             "performance": self.ep_performance
         }
+        
+        # Add reward distribution data if available
+        if hasattr(self, "reward_distribution"):
+            metrics_data["reward_distribution"] = self.reward_distribution
         
         # Convert all numpy types to native Python types
         metrics_data = convert_to_native_types(metrics_data)
