@@ -14,17 +14,61 @@ SB3_AVAILABLE = True
 from agents.base_agent import BaseAgent
 
 
+class EpisodeCountCallback(BaseCallback):
+    """Callback for tracking episodes and stopping after a specified number."""
+    
+    def __init__(self, max_episodes):
+        """
+        Initialize the callback.
+        
+        Args:
+            max_episodes: Maximum number of episodes to train for
+        """
+        super().__init__(verbose=0)
+        self.max_episodes = max_episodes
+        self.episode_count = 0
+        self.previous_dones = None
+        
+    def _on_step(self) -> bool:
+        """Called at each step of training."""
+        # Check if any episodes have ended (done flag is True)
+        dones = self.locals.get("dones", [False])
+        
+        # Count new episode completions (for vectorized environments we need to track changes)
+        if self.previous_dones is None:
+            # First call, initialize
+            self.previous_dones = dones
+        else:
+            # Count newly completed episodes
+            for prev_done, current_done in zip(self.previous_dones, dones):
+                if not prev_done and current_done:
+                    self.episode_count += 1
+            
+            # Update for next iteration
+            self.previous_dones = dones
+                    
+        # Continue training if we haven't reached the episode limit
+        return self.episode_count < self.max_episodes
+
+
 class SB3Logger(BaseCallback):
     """Callback for logging training progress with stable-baselines3."""
     
-    def __init__(self, logger):
-        """Initialize the callback."""
+    def __init__(self, logger, max_episodes=None):
+        """
+        Initialize the callback.
+        
+        Args:
+            logger: Logger for recording metrics
+            max_episodes: Maximum number of episodes (for info display)
+        """
         super().__init__(verbose=0)
         self._logger = logger
         self._last_recorded_step = 0
         self._episode_count = 0
         self._last_record_time = 0
         self._record_interval = 100  # Record every 100 steps
+        self._max_episodes = max_episodes
         
     def _on_step(self) -> bool:
         """Called at each step of training."""
@@ -195,15 +239,17 @@ class SB3Agent(BaseAgent):
         else:
             raise ValueError(f"Unsupported algorithm: {self.algorithm}")
             
-    def initialize(self, env, logger=None):
+    def initialize(self, env, logger=None, max_episodes=None):
         """
         Initialize the agent with the environment.
         
         Args:
             env: The environment to interact with
             logger: Logger for tracking metrics
+            max_episodes: Maximum number of episodes to train for
         """
         self.logger = logger
+        self.max_episodes = max_episodes
         set_random_seed(self.params["seed"])
         
         if self.algorithm == "DQN":
@@ -214,24 +260,62 @@ class SB3Agent(BaseAgent):
             self.model = PPO("MlpPolicy", env, **self.params)
             
         self.is_initialized = True
-        self.callback = SB3Logger(logger) if logger is not None else None
+        
+        # Create callbacks
+        callbacks = []
+        
+        # Add episode counting callback if max_episodes is specified
+        if max_episodes is not None:
+            self.episode_counter = EpisodeCountCallback(max_episodes)
+            callbacks.append(self.episode_counter)
+            
+        # Add logging callback if logger is provided
+        if logger is not None:
+            self.logger_callback = SB3Logger(logger, max_episodes)
+            callbacks.append(self.logger_callback)
+            
+        # Set up the callback chain
+        from stable_baselines3.common.callbacks import CallbackList
+        self.callback = CallbackList(callbacks) if callbacks else None
         
     def train(self, total_timesteps=10000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None):
         """
-        Train the agent for a specified number of timesteps.
+        Train the agent for a specified number of timesteps or episodes.
         
         Args:
-            total_timesteps: Total number of timesteps to train for
+            total_timesteps: Total number of timesteps to train for (or maximum limit when using episode counting)
             reset_num_timesteps: Whether to reset the number of timesteps to 0
             checkpoint_freq: Frequency (in timesteps) to save checkpoints
             checkpoint_path: Directory to save checkpoints
         """
         if not self.is_initialized:
             raise RuntimeError("Agent must be initialized with an environment first!")
+        
+        print(f"Training will continue until either {total_timesteps} timesteps are reached or {self.max_episodes} episodes are completed (if specified)")
             
+        # Configure a checkpoint callback if requested
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        callbacks = [self.callback] if self.callback else []
+        
+        if checkpoint_freq > 0 and checkpoint_path:
+            # Add a checkpoint callback to save models periodically
+            checkpoint_callback = CheckpointCallback(
+                save_freq=checkpoint_freq,
+                save_path=checkpoint_path,
+                name_prefix="rl_model",
+                save_replay_buffer=True,
+                save_vecnormalize=True
+            )
+            callbacks.append(checkpoint_callback)
+            
+        # Create a callback list if we have multiple callbacks
+        from stable_baselines3.common.callbacks import CallbackList
+        final_callback = CallbackList(callbacks) if len(callbacks) > 1 else callbacks[0] if callbacks else None
+            
+        # Start training
         self.model.learn(
             total_timesteps=total_timesteps,
-            callback=self.callback,
+            callback=final_callback,
             progress_bar=True,
             reset_num_timesteps=reset_num_timesteps
         )

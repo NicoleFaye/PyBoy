@@ -249,6 +249,102 @@ def train(agent, env, args, save_dir):
         print("Training complete")
 
 
+def train_with_episode_limit(agent, env, args, save_dir):
+    """
+    Train a Stable-Baselines3 agent for a specific number of episodes.
+    
+    Args:
+        agent: The agent to train
+        env: The environment
+        args: Command line arguments
+        save_dir: Directory to save models and logs
+    """
+    # Load checkpoint if specified
+    current_timestep = 0
+    if args.checkpoint:
+        checkpoint_path = Path(args.checkpoint)
+        
+        # Check if the specified path exists
+        if not checkpoint_path.exists():
+            # Try to find the most recent checkpoint in the directory
+            checkpoint_dir = checkpoint_path.parent
+            if checkpoint_dir.exists():
+                checkpoint_files = list(checkpoint_dir.glob("*.zip"))
+                if checkpoint_files:
+                    # Sort by modification time, newest first
+                    checkpoint_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                    checkpoint_path = checkpoint_files[0]
+                    print(f"Specified checkpoint not found. Using most recent: {checkpoint_path}")
+                else:
+                    print(f"No checkpoint files found in {checkpoint_dir}. Starting from scratch.")
+                    checkpoint_path = None
+            else:
+                print(f"Checkpoint directory {checkpoint_dir} not found. Starting from scratch.")
+                checkpoint_path = None
+        
+        # Load checkpoint if we found a valid one
+        if checkpoint_path is not None:
+            print(f"Loading checkpoint from {checkpoint_path}")
+            agent.load(checkpoint_path)
+            # Get current timestep if available
+            if hasattr(agent.model, 'num_timesteps'):
+                current_timestep = agent.model.num_timesteps
+                print(f"Resumed from timestep {current_timestep}")
+        else:
+            print("Starting from scratch.")
+    
+    # Set a high timestep limit to ensure we're only limited by episodes
+    # The EpisodeCountCallback will stop training when it reaches the episode limit
+    max_timesteps = 100_000_000  # 100 million timesteps should be more than enough
+    
+    print(f"Training with {args.algorithm.upper()} for {args.episodes} episodes")
+    print(f"Reward shaping: {args.reward_shaping}, Episode mode: {args.episode_mode}")
+    print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
+    print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
+    if hasattr(agent.model, 'batch_size'):
+        print(f"Batch size: {agent.model.batch_size}")
+    print(f"Save directory: {save_dir}")
+    
+    try:
+        # Train the agent until the episode count is reached
+        # The EpisodeCountCallback will stop training when it reaches the episode limit
+        agent.train(
+            total_timesteps=max_timesteps,  # This is just a maximum, will stop based on episodes
+            reset_num_timesteps=args.checkpoint is None,
+            checkpoint_freq=100000,  # Save every 100k steps
+            checkpoint_path=str(save_dir)
+        )
+        
+    except KeyboardInterrupt:
+        print("Training interrupted by user")
+        # Save on interrupt
+        interrupt_checkpoint = f"interrupted_timestep_{agent.model.num_timesteps}"
+        agent.save(interrupt_checkpoint)
+        print(f"Saved checkpoint at interruption (timestep {agent.model.num_timesteps})")
+    finally:
+        # Save final model
+        agent.save("final")
+        
+        # Make sure metrics file is written with final status
+        # We can access the logger through the agent's callback
+        if hasattr(agent, 'logger_callback') and agent.logger_callback._logger:
+            logger = agent.logger_callback._logger
+            
+            # Update metadata
+            if hasattr(logger, 'metadata'):
+                logger.metadata.update({
+                    'end_time': datetime.datetime.now().isoformat(),
+                    'total_steps_completed': agent.model.num_timesteps,
+                    'total_episodes_completed': getattr(agent.episode_counter, 'episode_count', 0),
+                    'training_completed': True
+                })
+                logger.save_metrics_json()
+        
+        # Clean up
+        env.close()
+        print("Training complete")
+
+
 def save_config(args, save_dir, seed=None):
     """Save training configuration to a file.
     
@@ -366,8 +462,30 @@ def main():
     # Save configuration with actual seed used
     save_config(args, save_dir, seed=seed)
     
-    # Train agent
-    train(agent, env, args, save_dir)
+    # Initialize agent with environment, logger, and episode limit
+    # Collect metadata about this training run for the logger
+    metadata = {
+        'algorithm': args.algorithm,
+        'reward_shaping': args.reward_shaping,
+        'episode_mode': args.episode_mode,
+        'frame_skip': args.frame_skip,
+        'frame_stack': args.frame_stack,
+        'learning_rate': args.lr,
+        'gamma': args.gamma,
+        'episodes': args.episodes,
+        'headless': args.headless,
+        'debug': args.debug,
+        'start_time': datetime.datetime.now().isoformat()
+    }
+    
+    # Create logger
+    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata)
+    
+    # Initialize with episode limit
+    agent.initialize(env, logger=logger, max_episodes=args.episodes)
+    
+    # Train agent with episode limit
+    train_with_episode_limit(agent, env, args, save_dir)
 
 
 if __name__ == "__main__":
