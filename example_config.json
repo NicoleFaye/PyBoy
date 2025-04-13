@@ -3,7 +3,7 @@
     {
       "algorithm": ["dqn", "ppo"],
       "reward_shaping": "comprehensive",
-      "policy_type":["dqn", "ppo","mlp"],
+      "policy_type":["mlp","cnn","lstm"],
       "episode_mode": "ball",
       "lr": 0.00025,
       "gamma": 0.99
