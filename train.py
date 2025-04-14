@@ -35,7 +35,8 @@ def parse_args(args=None):
     parser.add_argument("--rom", type=str, required=False, default=None, help="Path to the ROM file")
     parser.add_argument("--algorithm", type=str, default="ppo", choices=["dqn", "a2c", "ppo"], 
                         help="SB3 algorithm to use")
-    parser.add_argument("--episodes", type=int, default=10000, help="Number of episodes to train for")
+    parser.add_argument("--timesteps", type=int, default=5_000_000, help="Number of timesteps to train for")
+    parser.add_argument("--exploration-fraction", type=float, default=0.5, help="Fraction of total timesteps to explore (for DQN)")
     parser.add_argument("--model-name", type=str, default=None, 
                         help="Name for the model directory. If not specified, timestamp will be used")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to a checkpoint to resume from")
@@ -56,6 +57,10 @@ def parse_args(args=None):
                         help="Policy network architecture to use")
     parser.add_argument("--info-level", type=int, default=2,
                         help="Level of information to log (0: no info, 1: basic info, 2: detailed info)")
+    parser.add_argument("--max-history", type=int, default=None,
+                        help="Maximum number of timesteps to keep in memory for logger")
+    parser.add_argument("--json-save-freq", type=int, default=None,
+                        help="How often to save metrics JSON file (in timesteps)")
     
     parsed_args = parser.parse_args(args)
     
@@ -142,16 +147,24 @@ def setup_agent(args, env, save_dir, seed=None):
     
     try:
         from agents.sb3_agent import SB3Agent
-        agent = SB3Agent(
-            state_dim=state_dim,
-            action_dim=action_dim,
-            save_dir=save_dir,
-            algorithm=args.algorithm.upper(),
-            learning_rate=args.lr,
-            gamma=args.gamma,
-            seed=seed,
-            policy_type=args.policy_type
-        )
+        
+        # Only pass exploration_fraction to DQN
+        kwargs = {
+            "state_dim": state_dim,
+            "action_dim": action_dim,
+            "save_dir": save_dir,
+            "algorithm": args.algorithm.upper(),
+            "learning_rate": args.lr,
+            "gamma": args.gamma,
+            "seed": seed,
+            "policy_type": args.policy_type
+        }
+        
+        # Add exploration_fraction only for DQN
+        if args.algorithm.lower() == "dqn":
+            kwargs["exploration_fraction"] = args.exploration_fraction
+            
+        agent = SB3Agent(**kwargs)
     except ImportError:
         print("Error: Stable-Baselines3 is not installed. Please install it with:")
         print("pip install stable-baselines3[extra]")
@@ -161,9 +174,9 @@ def setup_agent(args, env, save_dir, seed=None):
 
 
 
-def train_with_episode_limit(agent, env, args, save_dir):
+def train_with_timestep_limit(agent, env, args, save_dir):
     """
-    Train a Stable-Baselines3 agent for a specific number of episodes.
+    Train a Stable-Baselines3 agent for a specific number of timesteps.
     
     Args:
         agent: The agent to train
@@ -205,11 +218,11 @@ def train_with_episode_limit(agent, env, args, save_dir):
         else:
             print("Starting from scratch.")
     
-    # Set a high timestep limit to ensure we're only limited by episodes
-    # The EpisodeCountCallback will stop training when it reaches the episode limit
-    max_timesteps = args.episodes*1_000_000
+    # Set the timestep limit based on the argument
+    max_timesteps = args.timesteps
+    remaining_timesteps = max(0, max_timesteps - current_timestep)
     
-    print(f"Training with {args.algorithm.upper()} using {args.policy_type.upper()} policy for {args.episodes} episodes")
+    print(f"Training with {args.algorithm.upper()} using {args.policy_type.upper()} policy for {remaining_timesteps} timesteps")
     print(f"Reward shaping: {args.reward_shaping}, Episode mode: {args.episode_mode}")
     print(f"Frame skip: {args.frame_skip}, Frame stack: {args.frame_stack}")
     print(f"Learning rate: {args.lr}, Gamma: {args.gamma}")
@@ -217,11 +230,18 @@ def train_with_episode_limit(agent, env, args, save_dir):
         print(f"Batch size: {agent.model.batch_size}")
     print(f"Save directory: {save_dir}")
     
+    # For DQN, print exploration schedule (only applies to DQN)
+    if args.algorithm.lower() == "dqn" and hasattr(agent.model, 'exploration_schedule'):
+        exploration_steps = int(max_timesteps * args.exploration_fraction)
+        print(f"DQN exploration schedule: {exploration_steps} steps ({args.exploration_fraction*100:.1f}% of training) to decay epsilon")
+        print(f"  from {agent.params.get('exploration_initial_eps', 1.0)} to {agent.params.get('exploration_final_eps', 0.05)}")
+    elif args.algorithm.lower() != "dqn" and args.exploration_fraction != 0.5:
+        print(f"Note: exploration_fraction={args.exploration_fraction} only affects DQN algorithm, not {args.algorithm.upper()}")
+    
     try:
-        # Train the agent until the episode count is reached
-        # The EpisodeCountCallback will stop training when it reaches the episode limit
+        # Train the agent for the specified number of timesteps
         agent.train(
-            total_timesteps=max_timesteps,  # This is just a maximum, will stop based on episodes
+            total_timesteps=remaining_timesteps,
             reset_num_timesteps=args.checkpoint is None,
             checkpoint_freq=100000,  # Save every 100k steps
             checkpoint_path=str(save_dir)
@@ -247,7 +267,7 @@ def train_with_episode_limit(agent, env, args, save_dir):
                 logger.metadata.update({
                     'end_time': datetime.datetime.now().isoformat(),
                     'total_steps_completed': agent.model.num_timesteps,
-                    'total_episodes_completed': getattr(agent.episode_counter, 'episode_count', 0),
+                    'total_episodes_completed': getattr(agent.episode_tracker, 'episode_count', 0),
                     'training_completed': True
                 })
                 logger.save_metrics_json()
@@ -385,20 +405,26 @@ def main():
         'frame_stack': args.frame_stack,
         'learning_rate': args.lr,
         'gamma': args.gamma,
-        'episodes': args.episodes,
+        'timesteps': args.timesteps,
         'headless': args.headless,
         'debug': args.debug,
         'start_time': datetime.datetime.now().isoformat()
     }
     
-    # Create logger
-    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata,max_history=args.episodes,json_save_freq=args.episodes//50)
+    # Only add exploration_fraction to metadata for DQN
+    if args.algorithm.lower() == 'dqn':
+        metadata['exploration_fraction'] = args.exploration_fraction
     
-    # Initialize with episode limit
-    agent.initialize(env, logger=logger, max_episodes=args.episodes)
+    # Create logger based on timesteps
+    max_history = args.max_history if args.max_history is not None else args.timesteps  # Keep full history for the entire training run
+    json_save_freq = args.json_save_freq if args.json_save_freq is not None else max(1000, args.timesteps // 50)  # Save approximately 50 times during training
+    logger = MetricLogger(save_dir, resume=args.checkpoint is not None, metadata=metadata, max_history=max_history, json_save_freq=json_save_freq)
     
-    # Train agent with episode limit
-    train_with_episode_limit(agent, env, args, save_dir)
+    # Initialize with logger
+    agent.initialize(env, logger=logger)
+    
+    # Train agent with timestep limit
+    train_with_timestep_limit(agent, env, args, save_dir)
 
 
 if __name__ == "__main__":

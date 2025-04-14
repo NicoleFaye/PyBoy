@@ -27,7 +27,7 @@ import datetime
 class MultiTrainer:
     """Manages multiple training sessions for Pokemon Pinball."""
     
-    def __init__(self, config_file, rom_path, max_processes=None, dry_run=False, episodes=10000):
+    def __init__(self, config_file, rom_path, max_processes=None, dry_run=False, timesteps=1000000, exploration_fraction=0.5):
         """
         Initialize the multi-trainer.
         
@@ -36,12 +36,14 @@ class MultiTrainer:
             rom_path: Path to the Pokemon Pinball ROM
             max_processes: Maximum number of concurrent processes (None for no limit)
             dry_run: If True, just print commands without executing
-            episodes: Number of episodes to run per training session
+            timesteps: Number of timesteps to run per training session
+            exploration_fraction: Fraction of total timesteps to explore (for DQN)
         """
         self.rom_path = rom_path
         self.max_processes = max_processes
         self.dry_run = dry_run
-        self.episodes = episodes
+        self.timesteps = timesteps
+        self.exploration_fraction = exploration_fraction
         self.processes = {}  # pid -> process object
         self.configs = []  # List of configurations to run
         self.running = True
@@ -167,14 +169,22 @@ class MultiTrainer:
         # Add checkpoint directory as model name to avoid creating another directory
         cmd.extend(["--model-name", checkpoint_dir.name])
 
-        # Add episodes parameter
-        cmd.extend(["--episodes", str(self.episodes)])
+        # Add timesteps parameter
+        cmd.extend(["--timesteps", str(self.timesteps)])
+        
+        # Add exploration fraction only for DQN
+        algorithm = config.get('algorithm', '').lower()
+        if algorithm == 'dqn':
+            if 'exploration_fraction' in config:
+                cmd.extend(["--exploration-fraction", str(config['exploration_fraction'])])
+            else:
+                cmd.extend(["--exploration-fraction", str(self.exploration_fraction)])
 
         cmd.extend(["--headless"])
         
         # Add all other parameters
         for key, value in config.items():
-            if key in ['rom', 'episodes']:
+            if key in ['rom', 'timesteps', 'exploration_fraction']:
                 continue  # Skip these as they're already added
                 
             param_key = f"--{key.replace('_', '-')}"
@@ -233,6 +243,13 @@ class MultiTrainer:
         # Check if stable-baselines3 is installed
         try:
             import stable_baselines3
+            
+            # While we're at it, also add appropriate logger settings to command
+            # This ensures multi_trainer also uses timestep-based logging settings
+            max_history = self.timesteps
+            json_save_freq = max(1000, self.timesteps // 50)
+            cmd.extend(["--max-history", str(max_history), "--json-save-freq", str(json_save_freq)])
+            
         except ImportError as e:
             # Write error to the log file instead of starting the process
             output_file.write("Error: Stable-Baselines3 is not installed. Please install it with:\n")
@@ -780,7 +797,8 @@ def main():
                        help="Maximum number of concurrent training processes")
     parser.add_argument("--dry-run", action="store_true", 
                        help="Print commands without executing them")
-    parser.add_argument("--episodes", type=int, default=10000)
+    parser.add_argument("--timesteps", type=int, default=1000000, help="Number of timesteps to train for")
+    parser.add_argument("--exploration-fraction", type=float, default=0.5, help="Fraction of timesteps to explore (for DQN)")
     args = parser.parse_args()
     
     # Setup the trainer
@@ -789,7 +807,8 @@ def main():
         rom_path=args.rom,
         max_processes=args.max_processes,
         dry_run=args.dry_run,
-        episodes=args.episodes
+        timesteps=args.timesteps,
+        exploration_fraction=args.exploration_fraction
     )
     
     # Handle graceful shutdown on SIGTERM

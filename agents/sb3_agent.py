@@ -14,18 +14,12 @@ SB3_AVAILABLE = True
 from agents.base_agent import BaseAgent
 
 
-class EpisodeCountCallback(BaseCallback):
-    """Callback for tracking episodes and stopping after a specified number."""
+class EpisodeTracker(BaseCallback):
+    """Callback for tracking episodes during training."""
     
-    def __init__(self, max_episodes):
-        """
-        Initialize the callback.
-        
-        Args:
-            max_episodes: Maximum number of episodes to train for
-        """
+    def __init__(self):
+        """Initialize the callback."""
         super().__init__(verbose=0)
-        self.max_episodes = max_episodes
         self.episode_count = 0
         self.previous_dones = None
         
@@ -47,20 +41,19 @@ class EpisodeCountCallback(BaseCallback):
             # Update for next iteration
             self.previous_dones = dones
                     
-        # Continue training if we haven't reached the episode limit
-        return self.episode_count < self.max_episodes
+        # Always continue training - timesteps control termination
+        return True
 
 
 class SB3Logger(BaseCallback):
     """Callback for logging training progress with stable-baselines3."""
     
-    def __init__(self, logger, max_episodes=None):
+    def __init__(self, logger):
         """
         Initialize the callback.
         
         Args:
             logger: Logger for recording metrics
-            max_episodes: Maximum number of episodes (for info display)
         """
         super().__init__(verbose=0)
         self._logger = logger
@@ -68,7 +61,6 @@ class SB3Logger(BaseCallback):
         self._episode_count = 0
         self._last_record_time = 0
         self._record_interval = 100  # Record every 100 steps
-        self._max_episodes = max_episodes
         
     def _on_step(self) -> bool:
         """Called at each step of training."""
@@ -160,6 +152,7 @@ class SB3Agent(BaseAgent):
         learning_starts: int = 10000,
         batch_size: int = 32,
         gamma: float = 0.99,
+        exploration_fraction: float = 0.5,
         seed: Optional[int] = None,
         policy_kwargs: Optional[Dict] = None,
         verbose: int = 1
@@ -178,6 +171,7 @@ class SB3Agent(BaseAgent):
             learning_starts: Number of steps before learning starts (primarily for DQN, stored for all)
             batch_size: Batch size for training (used by all algorithms, but with different meanings)
             gamma: Discount factor
+            exploration_fraction: Fraction of total timesteps to explore (for DQN)
             seed: Random seed
             policy_kwargs: Additional arguments to pass to the policy
             verbose: Verbosity level
@@ -195,6 +189,7 @@ class SB3Agent(BaseAgent):
         self.buffer_size = buffer_size
         self.learning_starts = learning_starts
         self.batch_size = batch_size
+        self.exploration_fraction = exploration_fraction
         self.policy_kwargs = policy_kwargs or {}
         self.verbose = verbose
         self.logger = None  
@@ -287,7 +282,7 @@ class SB3Agent(BaseAgent):
                 "buffer_size": self.buffer_size,
                 "learning_starts": self.learning_starts,
                 "batch_size": self.batch_size,
-                "exploration_fraction": 0.1,
+                "exploration_fraction": self.exploration_fraction,
                 "exploration_initial_eps": 1.0,
                 "exploration_final_eps": 0.05,
                 "target_update_interval": 1000,
@@ -310,17 +305,15 @@ class SB3Agent(BaseAgent):
         else:
             raise ValueError(f"Unsupported algorithm: {self.algorithm}")
             
-    def initialize(self, env, logger=None, max_episodes=None):
+    def initialize(self, env, logger=None):
         """
         Initialize the agent with the environment.
         
         Args:
             env: The environment to interact with
             logger: Logger for tracking metrics
-            max_episodes: Maximum number of episodes to train for
         """
         self.logger = logger
-        self.max_episodes = max_episodes
         set_random_seed(self.params["seed"])
         
         # Map policy type to SB3 policy string
@@ -365,14 +358,13 @@ class SB3Agent(BaseAgent):
         # Create callbacks
         callbacks = []
         
-        # Add episode counting callback if max_episodes is specified
-        if max_episodes is not None:
-            self.episode_counter = EpisodeCountCallback(max_episodes)
-            callbacks.append(self.episode_counter)
+        # Add episode tracking callback
+        self.episode_tracker = EpisodeTracker()
+        callbacks.append(self.episode_tracker)
             
         # Add logging callback if logger is provided
         if logger is not None:
-            self.logger_callback = SB3Logger(logger, max_episodes)
+            self.logger_callback = SB3Logger(logger)
             callbacks.append(self.logger_callback)
             
         # Set up the callback chain
@@ -381,33 +373,47 @@ class SB3Agent(BaseAgent):
         # Store callback list for train method
         self.callbacks = callbacks
         
-    def train(self, total_timesteps=10000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None):
+    def train(self, total_timesteps=1000000, reset_num_timesteps=True, checkpoint_freq=0, checkpoint_path=None, replay_buffer_save_ratio=0.05):
         """
-        Train the agent for a specified number of timesteps or episodes.
+        Train the agent for a specified number of timesteps.
         
         Args:
-            total_timesteps: Total number of timesteps to train for (or maximum limit when using episode counting)
+            total_timesteps: Total number of timesteps to train for
             reset_num_timesteps: Whether to reset the number of timesteps to 0
             checkpoint_freq: Frequency (in timesteps) to save checkpoints
             checkpoint_path: Directory to save checkpoints
+            replay_buffer_save_ratio: How often to save replay buffer as a ratio of total training time (0.05 = save at 5% intervals)
         """
         if not self.is_initialized:
             raise RuntimeError("Agent must be initialized with an environment first!")
         
-        print(f"Training will continue until either {total_timesteps} timesteps are reached or {self.max_episodes} episodes are completed (if specified)")
+        print(f"Training for {total_timesteps} timesteps (episodes will be tracked but won't limit training)")
             
         # Configure a checkpoint callback if requested
         from stable_baselines3.common.callbacks import CheckpointCallback
         callbacks = self.callbacks.copy() if hasattr(self, 'callbacks') and self.callbacks else []
         
         if checkpoint_freq > 0 and checkpoint_path:
+            # Calculate buffer save frequency
+            buffer_save_freq = int(total_timesteps * replay_buffer_save_ratio)
+            buffer_save_freq = max(buffer_save_freq, checkpoint_freq * 10)  # At minimum, 10x less often than model checkpoints
+            
+            # Customize save_replay_buffer based on which checkpoint it is
+            class CustomCheckpointCallback(CheckpointCallback):
+                def _on_step(self) -> bool:
+                    if self.n_calls % self.save_freq == 0:
+                        # Only save buffer at the calculated replay buffer frequency
+                        save_buffer = (self.n_calls % buffer_save_freq == 0)
+                        self._save_model(self.model, self.save_path, self.name_prefix, self.verbose, 
+                                         save_replay_buffer=save_buffer)
+                    return True
+            
             # Add a checkpoint callback to save models periodically
-            checkpoint_callback = CheckpointCallback(
+            checkpoint_callback = CustomCheckpointCallback(
                 save_freq=checkpoint_freq,
                 save_path=checkpoint_path,
                 name_prefix="rl_model",
-                save_replay_buffer=True,
-                save_vecnormalize=True
+                verbose=1
             )
             callbacks.append(checkpoint_callback)
             

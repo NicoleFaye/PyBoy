@@ -15,7 +15,7 @@ import numpy as np
 class MetricLogger:
     """Logger for tracking and visualizing training metrics."""
     
-    def __init__(self, save_dir, resume=False, metadata=None, max_history=10000, json_save_freq=100):
+    def __init__(self, save_dir, resume=False, metadata=None, max_history=5_000_000, json_save_freq=100_000):
         """
         Initialize the metric logger.
         
@@ -23,8 +23,8 @@ class MetricLogger:
             save_dir: Directory to save logs and plots
             resume: Whether to resume from existing logs
             metadata: Additional metadata about the training run (algorithm, reward_shaping, etc.)
-            max_history: Maximum number of episodes to keep in memory (0 for unlimited)
-            json_save_freq: How often to save the metrics.json file (every N episodes)
+            max_history: Maximum number of timesteps to keep in memory (0 for unlimited)
+            json_save_freq: How often to save the metrics.json file (every N timesteps)
         """
         self.resume = resume
         self.save_dir = save_dir
@@ -33,7 +33,7 @@ class MetricLogger:
         self.metadata = metadata or {}
         self.max_history = max_history
         self.json_save_freq = json_save_freq
-        self.last_json_save_episode = 0
+        self.last_json_save_step = 0
         
         # Plot file paths
         self.ep_rewards_plot = save_dir / "reward_plot.jpg"
@@ -300,15 +300,15 @@ class MetricLogger:
         
         # Save metrics as JSON periodically to reduce I/O overhead
         # Save on these conditions:
-        # 1. First time through (episode 0)
-        # 2. Every json_save_freq episodes
+        # 1. First time through (step 0)
+        # 2. Every json_save_freq timesteps
         # 3. When explicitly requested by force_save
-        if (episode == 0 or 
-            episode - self.last_json_save_episode >= self.json_save_freq or
+        if (step == 0 or 
+            step - self.last_json_save_step >= self.json_save_freq or
             getattr(self, 'force_save', False)):
             
             self.save_metrics_json()
-            self.last_json_save_episode = episode
+            self.last_json_save_step = step
             self.force_save = False
             
             # Create visualization plots only when saving JSON

@@ -5,6 +5,7 @@
       "reward_shaping": "comprehensive",
       "policy_type":["mlp","cnn","lstm"],
       "episode_mode": "ball",
+      "exploration_fraction": 0.5,
       "lr": 0.00025,
       "gamma": 0.99
     }
