@@ -2,6 +2,7 @@
 """
 Script to visualize and analyze training metrics from saved models.
 This performs post-processing visualization without impacting training performance.
+Modified to use colorblind-friendly colors.
 """
 import argparse
 import json
@@ -12,6 +13,19 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt  
 import numpy as np
+
+
+# Colorblind-friendly color palette
+# Based on recommendations from ColorBrewer, Bang Wong, and Okabe & Ito
+CB_COLORS = {
+    'blue': '#0072B2',       # Deep blue - primary color
+    'vermilion': '#D55E00',  # Red/orange - high contrast with blue
+    'teal': '#009E73',       # Blue-green - distinguishable from both blue and green
+    'yellow': '#F0E442',     # Yellow - high contrast
+    'black': '#000000',      # Black - always high contrast
+    'gray': '#999999',       # Gray - neutral alternative to purple
+    'sky': '#56B4E9'         # Sky blue - more distinguishable from main blue
+}
 
 
 def calculate_moving_average(data, window_size=100):
@@ -102,28 +116,28 @@ def plot_single_metrics(data, output_path):
                  f'Episodes: {episodes}, Steps: {timesteps}', 
                  fontsize=16)
     
-    # Plot rewards
-    ax1.plot(rewards, 'b-', alpha=0.3, label='Raw')
-    line, = ax1.plot(reward_ma, 'b-', label='Moving Avg (100 ep)')
+    # Plot rewards - CHANGED: Using blue from colorblind-friendly palette
+    ax1.plot(rewards, color=CB_COLORS['blue'], alpha=0.3, label='Raw')
+    line, = ax1.plot(reward_ma, color=CB_COLORS['blue'], label='Moving Avg (100 ep)')
     # Add visible marker at the end of the line - larger and on top of other elements
     if len(reward_ma) > 0:
         # Use zorder to ensure marker is on top of all other elements
-        ax1.plot(len(reward_ma)-1, reward_ma[-1], 'bo', markersize=14, markeredgecolor='black', 
-                 markeredgewidth=2, zorder=10)
+        ax1.plot(len(reward_ma)-1, reward_ma[-1], 'o', color=CB_COLORS['blue'], 
+                 markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=10)
     ax1.set_title('Episode Rewards')
     ax1.set_xlabel('Episode')
     ax1.set_ylabel('Reward')
     ax1.legend()
     ax1.grid(True, linestyle='--', alpha=0.7)
     
-    # Plot episode lengths
-    ax2.plot(episode_lengths, 'g-', alpha=0.3, label='Raw')
-    line, = ax2.plot(length_ma, 'g-', label='Moving Avg (100 ep)')
+    # Plot episode lengths - CHANGED: Using teal from colorblind-friendly palette
+    ax2.plot(episode_lengths, color=CB_COLORS['teal'], alpha=0.3, label='Raw')
+    line, = ax2.plot(length_ma, color=CB_COLORS['teal'], label='Moving Avg (100 ep)')
     # Add visible marker at the end of the line - larger and on top of other elements
     if len(length_ma) > 0:
         # Use zorder to ensure marker is on top of all other elements
-        ax2.plot(len(length_ma)-1, length_ma[-1], 'go', markersize=14, markeredgecolor='black', 
-                 markeredgewidth=2, zorder=10)
+        ax2.plot(len(length_ma)-1, length_ma[-1], 'o', color=CB_COLORS['teal'], 
+                 markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=10)
     ax2.set_title('Episode Lengths')
     ax2.set_xlabel('Episode')
     ax2.set_ylabel('Steps')
@@ -195,8 +209,10 @@ def plot_comparison_metrics(data_list, output_path):
     # Create a 2x1 subplot figure with true ultra-wide 21:9 aspect ratio
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(21, 9))
     
-    # Colors for different runs
-    colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']
+    # CHANGED: Colors for different runs - using colorblind-friendly palette
+    # Removed purple and added gray and sky blue for better distinction with red-green colorblindness
+    colors = [CB_COLORS['blue'], CB_COLORS['vermilion'], CB_COLORS['teal'], 
+              CB_COLORS['yellow'], CB_COLORS['gray'], CB_COLORS['sky'], CB_COLORS['black']]
     
     # Add a title
     fig.suptitle('Training Comparison', fontsize=16)
@@ -232,23 +248,23 @@ def plot_comparison_metrics(data_list, output_path):
         length_ma = calculate_moving_average(episode_lengths)
         
         # Plot rewards (moving average only for clarity)
-        # Simplify the label to just the checkpoint name without "(MA)" text
-        line, = ax1.plot(reward_ma, f'{color}-', linewidth=2, label=f'{label}')
+        # CHANGED: Using colorblind-friendly colors and cleaner style
+        line, = ax1.plot(reward_ma, color=color, linewidth=2, label=f'{label}')
         # Add visible marker at the end of the line to show where each run ends - larger and on top 
         if len(reward_ma) > 0:
             # Use zorder to ensure marker is on top of all other elements
-            ax1.plot(len(reward_ma)-1, reward_ma[-1], f'{color}o', markersize=14, markeredgecolor='black', 
-                     markeredgewidth=2, zorder=10)
+            ax1.plot(len(reward_ma)-1, reward_ma[-1], 'o', color=color, 
+                     markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=10)
         legend_items.append(line)
         
         # Plot episode lengths (moving average only for clarity)
-        # Simplify the label to just the checkpoint name without "(MA)" text
-        line2, = ax2.plot(length_ma, f'{color}-', linewidth=2, label=f'{label}')
+        # CHANGED: Using colorblind-friendly colors and cleaner style
+        line2, = ax2.plot(length_ma, color=color, linewidth=2, label=f'{label}')
         # Add visible marker at the end of the line to show where each run ends - larger and on top
         if len(length_ma) > 0:
             # Use zorder to ensure marker is on top of all other elements
-            ax2.plot(len(length_ma)-1, length_ma[-1], f'{color}o', markersize=14, markeredgecolor='black',
-                     markeredgewidth=2, zorder=10)
+            ax2.plot(len(length_ma)-1, length_ma[-1], 'o', color=color,
+                     markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=10)
         
         # Add summary statistics for this run - simplified name to avoid text cutoff
         recent_rewards = rewards[-100:] if len(rewards) >= 100 else rewards
