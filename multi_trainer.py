@@ -27,7 +27,7 @@ import datetime
 class MultiTrainer:
     """Manages multiple training sessions for Pokemon Pinball."""
     
-    def __init__(self, config_file, rom_path, max_processes=None, dry_run=False):
+    def __init__(self, config_file, rom_path, max_processes=None, dry_run=False, episodes=10000):
         """
         Initialize the multi-trainer.
         
@@ -36,10 +36,12 @@ class MultiTrainer:
             rom_path: Path to the Pokemon Pinball ROM
             max_processes: Maximum number of concurrent processes (None for no limit)
             dry_run: If True, just print commands without executing
+            episodes: Number of episodes to run per training session
         """
         self.rom_path = rom_path
         self.max_processes = max_processes
         self.dry_run = dry_run
+        self.episodes = episodes
         self.processes = {}  # pid -> process object
         self.configs = []  # List of configurations to run
         self.running = True
@@ -165,11 +167,14 @@ class MultiTrainer:
         # Add checkpoint directory as model name to avoid creating another directory
         cmd.extend(["--model-name", checkpoint_dir.name])
 
+        # Add episodes parameter
+        cmd.extend(["--episodes", str(self.episodes)])
+
         cmd.extend(["--headless"])
         
         # Add all other parameters
         for key, value in config.items():
-            if key in ['rom']:
+            if key in ['rom', 'episodes']:
                 continue  # Skip these as they're already added
                 
             param_key = f"--{key.replace('_', '-')}"
@@ -412,16 +417,29 @@ class MultiTrainer:
                                                 universal_newlines=True
                                             )
                                             
-                                            # Extract timesteps from log line (e.g., "timesteps: 123/10000")
-                                            progress_match = re.search(r'timesteps?:?\s*(\d+)/(\d+)', tail)
-                                            if progress_match:
-                                                current = int(progress_match.group(1))
-                                                total = int(progress_match.group(2))
+                                            # Try to extract episode information first
+                                            episode_match = re.search(r'Episode\s+(\d+)(?:.*?(\d+)\s+episodes)?', tail)
+                                            if episode_match:
+                                                current = int(episode_match.group(1))
+                                                total = int(episode_match.group(2)) if episode_match.group(2) else self.episodes
                                                 batch_results['metrics'][pid]['progress'] = {
                                                     'current': current,
                                                     'total': total,
-                                                    'percent': (current / total) * 100 if total > 0 else 0
+                                                    'percent': (current / total) * 100 if total > 0 else 0,
+                                                    'type': 'episodes'
                                                 }
+                                            # Fall back to timesteps if episode info not found
+                                            else:
+                                                progress_match = re.search(r'timesteps?:?\s*(\d+)/(\d+)', tail)
+                                                if progress_match:
+                                                    current = int(progress_match.group(1))
+                                                    total = int(progress_match.group(2))
+                                                    batch_results['metrics'][pid]['progress'] = {
+                                                        'current': current,
+                                                        'total': total,
+                                                        'percent': (current / total) * 100 if total > 0 else 0,
+                                                        'type': 'timesteps'
+                                                    }
                                 except:
                                     pass  # Skip progress info if there's an error
                         except:
@@ -528,7 +546,8 @@ class MultiTrainer:
                             bar_width = 40
                             filled_width = int(bar_width * percent / 100)
                             bar = '█' * filled_width + '░' * (bar_width - filled_width)
-                            display_buffer.append(f"  Progress: {bar} {percent:.1f}% ({progress['current']}/{progress['total']})")
+                            progress_type = progress.get('type', 'steps')
+                            display_buffer.append(f"  Progress: {bar} {percent:.1f}% ({progress['current']}/{progress['total']} {progress_type})")
                             
                         display_buffer.append(f"  CPU {metrics['cpu']:.1f}%, Memory {metrics['memory']:.1f} MB")
                     
@@ -755,6 +774,7 @@ def main():
                        help="Maximum number of concurrent training processes")
     parser.add_argument("--dry-run", action="store_true", 
                        help="Print commands without executing them")
+    parser.add_argument("--episodes", type=int, default=10000)
     args = parser.parse_args()
     
     # Setup the trainer
@@ -762,7 +782,8 @@ def main():
         config_file=args.config,
         rom_path=args.rom,
         max_processes=args.max_processes,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        episodes=args.episodes
     )
     
     # Handle graceful shutdown on SIGTERM
