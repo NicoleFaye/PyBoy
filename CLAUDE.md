@@ -11,6 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Will automatically find the most recent checkpoint if the specified file doesn't exist
 - PyBoy scripts: `python -m pyboy [ROM_PATH] [OPTIONS]`
 - Check logs of recent runs base command: cat ./checkpoints/*/*.log
+- Build PyBoy: `make build` or `python setup.py build_ext --inplace`
+- Run benchmarks: `make benchmark` or `pytest -m benchmark tests/test_benchmark.py --benchmark-enable`
 
 ## Code Style
 - Follow Google Python style guide
@@ -19,7 +21,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Imports: stdlib first, then third-party, then local modules
 - Naming: snake_case for functions/variables, PascalCase for classes
 - Error handling: Use specific exceptions with informative messages
-- Keep line length under 100 characters
+- Line length: 120 characters (configured in pyproject.toml with ruff)
+- Format compliance: Use pre-commit hooks (required for contributions)
 
 ## Notes
 - For Gymnasium 1.1.1, use `from gymnasium.wrappers import FrameStackObservation as FrameStack`
@@ -27,3 +30,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Access the game wrapper via: `pyboy.game_wrapper`
 - PyBoy uses Cython for performance-critical components
 - Reinforcement learning uses Stable-Baselines3 with support for DQN, A2C, and PPO algorithms
+- The metrics logger caps history at 10,000 episodes by default (in utils/logger.py)

@@ -220,6 +220,7 @@ class SB3Agent(BaseAgent):
                     
                     def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 512):
                         super().__init__(observation_space, features_dim)
+                        print("Using custom CNN feature extractor, you should probably make settings to adjust params")
                         
                         # Extract information from observation space
                         n_input_channels = observation_space.shape[0]  # Number of stacked frames
