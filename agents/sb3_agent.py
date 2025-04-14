@@ -332,7 +332,7 @@ class SB3Agent(BaseAgent):
                     # Replace the algorithm class
                     self.model = RecurrentPPO(policy_name, env, **self.params)
                     self.is_initialized = True
-                    return  # Skip the normal initialization below
+                    # Don't return here, continue to set up callbacks
                 except ImportError:
                     print("RecurrentPPO requires sb3_contrib. Please install it with:")
                     print("pip install sb3_contrib")
@@ -350,14 +350,16 @@ class SB3Agent(BaseAgent):
             policy_name = "MlpPolicy"
         
         # Create the model with the appropriate policy
-        if self.algorithm == "DQN":
-            self.model = DQN(policy_name, env, **self.params)
-        elif self.algorithm == "A2C":
-            self.model = A2C(policy_name, env, **self.params)
-        elif self.algorithm == "PPO":
-            self.model = PPO(policy_name, env, **self.params)
-            
-        self.is_initialized = True
+        # Skip if already initialized (e.g., by RecurrentPPO)
+        if not self.is_initialized:
+            if self.algorithm == "DQN":
+                self.model = DQN(policy_name, env, **self.params)
+            elif self.algorithm == "A2C":
+                self.model = A2C(policy_name, env, **self.params)
+            elif self.algorithm == "PPO":
+                self.model = PPO(policy_name, env, **self.params)
+                
+            self.is_initialized = True
         
         # Create callbacks
         callbacks = []
