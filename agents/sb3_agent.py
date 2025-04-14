@@ -208,6 +208,8 @@ class SB3Agent(BaseAgent):
                 import torch.nn as nn
                 import gym
                 import torch
+
+
                 
                 # Define a custom CNN feature extractor
                 class CustomCNN(BaseFeaturesExtractor):
@@ -332,7 +334,6 @@ class SB3Agent(BaseAgent):
                     # Replace the algorithm class
                     self.model = RecurrentPPO(policy_name, env, **self.params)
                     self.is_initialized = True
-                    # Don't return here, continue to set up callbacks
                 except ImportError:
                     print("RecurrentPPO requires sb3_contrib. Please install it with:")
                     print("pip install sb3_contrib")
