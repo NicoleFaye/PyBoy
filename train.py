@@ -50,7 +50,7 @@ def parse_args(args=None):
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with normal speed visualization")
     parser.add_argument("--headless", action="store_true", help="Run without visualization (fastest training)")
     parser.add_argument("--lr", type=float, default=0.00025, help="Learning rate")
-    parser.add_argument("--gamma", type=float, default=0.9, help="Discount factor")
+    parser.add_argument("--gamma", type=float, default=0.95, help="Discount factor")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility (default: use system time)")
     parser.add_argument("--policy-type", type=str, default="mlp", choices=["mlp", "cnn", "lstm"],
                         help="Policy network architecture to use")
