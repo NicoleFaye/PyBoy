@@ -16,6 +16,8 @@ import numpy as np
 
 def calculate_moving_average(data, window_size=100):
     """Calculate the moving average of a list of values."""
+    if not data:  # Handle empty data case
+        return []
     return [np.mean(data[max(0, i - window_size + 1):i + 1]) for i in range(len(data))]
 
 
@@ -92,8 +94,8 @@ def plot_single_metrics(data, output_path):
     reward_ma = calculate_moving_average(rewards)
     length_ma = calculate_moving_average(episode_lengths)
     
-    # Create a 2x1 subplot figure
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    # Create a 2x1 subplot figure with true ultra-wide 21:9 aspect ratio
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(21, 9))
     
     # Add a title with metadata
     fig.suptitle(f'Training Results - {algorithm} / {reward_shaping}\n'
@@ -102,7 +104,12 @@ def plot_single_metrics(data, output_path):
     
     # Plot rewards
     ax1.plot(rewards, 'b-', alpha=0.3, label='Raw')
-    ax1.plot(reward_ma, 'b-', label='Moving Avg (100 ep)')
+    line, = ax1.plot(reward_ma, 'b-', label='Moving Avg (100 ep)')
+    # Add visible marker at the end of the line - larger and on top of other elements
+    if len(reward_ma) > 0:
+        # Use zorder to ensure marker is on top of all other elements
+        ax1.plot(len(reward_ma)-1, reward_ma[-1], 'bo', markersize=14, markeredgecolor='black', 
+                 markeredgewidth=2, zorder=10)
     ax1.set_title('Episode Rewards')
     ax1.set_xlabel('Episode')
     ax1.set_ylabel('Reward')
@@ -111,39 +118,72 @@ def plot_single_metrics(data, output_path):
     
     # Plot episode lengths
     ax2.plot(episode_lengths, 'g-', alpha=0.3, label='Raw')
-    ax2.plot(length_ma, 'g-', label='Moving Avg (100 ep)')
+    line, = ax2.plot(length_ma, 'g-', label='Moving Avg (100 ep)')
+    # Add visible marker at the end of the line - larger and on top of other elements
+    if len(length_ma) > 0:
+        # Use zorder to ensure marker is on top of all other elements
+        ax2.plot(len(length_ma)-1, length_ma[-1], 'go', markersize=14, markeredgecolor='black', 
+                 markeredgewidth=2, zorder=10)
     ax2.set_title('Episode Lengths')
     ax2.set_xlabel('Episode')
     ax2.set_ylabel('Steps')
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
     
+    # Set the x-axis limit with some extra space for readability
+    num_episodes = len(rewards)
+    if num_episodes > 0:  # Make sure we have data before calculating buffer
+        buffer = max(int(num_episodes * 0.1), 10)  # 10% extra space but at least 10 episodes
+        ax1.set_xlim(0, num_episodes + buffer)
+        ax2.set_xlim(0, num_episodes + buffer)
+    
     # Add summary statistics
     recent_rewards = rewards[-100:] if len(rewards) >= 100 else rewards
     recent_lengths = episode_lengths[-100:] if len(episode_lengths) >= 100 else episode_lengths
     
+    # Safely calculate statistics to handle empty arrays
+    avg_reward = np.mean(recent_rewards) if recent_rewards else 0
+    avg_length = np.mean(recent_lengths) if recent_lengths else 0
+    max_reward = max(rewards) if rewards else 0
+    
     textstr = '\n'.join((
         f'Algorithm: {algorithm}',
         f'Reward Shaping: {reward_shaping}',
-        f'Recent Avg Reward: {np.mean(recent_rewards):.2f}',
-        f'Recent Avg Length: {np.mean(recent_lengths):.2f}',
-        f'Max Reward: {max(rewards):.2f}'
+        f'Recent Avg Reward: {avg_reward:.2f}',
+        f'Recent Avg Length: {avg_length:.2f}',
+        f'Max Reward: {max_reward:.2f}'
     ))
     
-    # Add a text box with the summary
+    # Create a new axis for the text box (on the right side)
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-    ax1.text(0.05, 0.95, textstr, transform=ax1.transAxes, 
-             fontsize=10, verticalalignment='top', bbox=props)
     
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    # Position text box with extra width for plenty of space
+    text_ax = fig.add_axes([0.82, 0.4, 0.17, 0.3])  # [left, bottom, width, height]
+    text_ax.axis('off')  # Hide the axis
     
-    # Save the plot
+    # Adjust text positioning within the box
+    text_ax.text(0.05, 0.5, textstr, fontsize=12, 
+             verticalalignment='center', horizontalalignment='left', bbox=props)
+    
+    # Replace tight_layout with more explicit control over subplot arrangement
+    # This avoids the "not compatible with tight_layout" warning
+    # With ultra-wide format, we can push plots further left and have more room for text
+    fig.subplots_adjust(left=0.05, right=0.80, bottom=0.1, top=0.9, hspace=0.3)
+    
+    # Save the plot with high DPI for better detail when zooming
     filename = f"{algorithm.lower()}_{reward_shaping.lower()}_analysis.png"
-    plt.savefig(output_path / filename, dpi=200)
+    plt.savefig(output_path / filename, dpi=300)
     print(f"Saved analysis to {output_path / filename}")
     
-    # Also show the plot if running in interactive mode
-    plt.show()
+    # Only show the plot if running in an interactive environment with a display available
+    try:
+        # Check if we're in an interactive environment that supports display
+        import matplotlib as mpl
+        if mpl.is_interactive() and not plt.get_backend().lower().startswith('agg'):
+            plt.show()
+    except Exception:
+        # If any issues occur when trying to display, just skip it
+        pass
     
 
 def plot_comparison_metrics(data_list, output_path):
@@ -152,8 +192,8 @@ def plot_comparison_metrics(data_list, output_path):
         print("Need at least two datasets for comparison")
         return
     
-    # Create a 2x1 subplot figure
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 12))
+    # Create a 2x1 subplot figure with true ultra-wide 21:9 aspect ratio
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(21, 9))
     
     # Colors for different runs
     colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']
@@ -192,21 +232,37 @@ def plot_comparison_metrics(data_list, output_path):
         length_ma = calculate_moving_average(episode_lengths)
         
         # Plot rewards (moving average only for clarity)
-        line, = ax1.plot(reward_ma, f'{color}-', linewidth=2, label=f'{label} (MA)')
+        # Simplify the label to just the checkpoint name without "(MA)" text
+        line, = ax1.plot(reward_ma, f'{color}-', linewidth=2, label=f'{label}')
+        # Add visible marker at the end of the line to show where each run ends - larger and on top 
+        if len(reward_ma) > 0:
+            # Use zorder to ensure marker is on top of all other elements
+            ax1.plot(len(reward_ma)-1, reward_ma[-1], f'{color}o', markersize=14, markeredgecolor='black', 
+                     markeredgewidth=2, zorder=10)
         legend_items.append(line)
         
         # Plot episode lengths (moving average only for clarity)
-        ax2.plot(length_ma, f'{color}-', linewidth=2, label=f'{label} (MA)')
+        # Simplify the label to just the checkpoint name without "(MA)" text
+        line2, = ax2.plot(length_ma, f'{color}-', linewidth=2, label=f'{label}')
+        # Add visible marker at the end of the line to show where each run ends - larger and on top
+        if len(length_ma) > 0:
+            # Use zorder to ensure marker is on top of all other elements
+            ax2.plot(len(length_ma)-1, length_ma[-1], f'{color}o', markersize=14, markeredgecolor='black',
+                     markeredgewidth=2, zorder=10)
         
-        # Add summary statistics for this run
+        # Add summary statistics for this run - simplified name to avoid text cutoff
         recent_rewards = rewards[-100:] if len(rewards) >= 100 else rewards
         recent_lengths = episode_lengths[-100:] if len(episode_lengths) >= 100 else episode_lengths
         
+        # Just use checkpoint name (label) as it contains all the algorithm info already
+        avg_reward = np.mean(recent_rewards) if recent_rewards else 0
+        max_reward = max(rewards) if rewards else 0
+        
         summary_text.append(
-            f'{label} ({algorithm}/{reward_shaping}):\n'
+            f'{label}:\n'
             f'  Steps: {timesteps:,}\n'
-            f'  Avg Reward: {np.mean(recent_rewards):.2f}\n'
-            f'  Max Reward: {max(rewards):.2f}\n'
+            f'  Avg Reward: {avg_reward:.2f}\n'
+            f'  Max Reward: {max_reward:.2f}\n'
         )
     
     # Set titles and labels
@@ -222,27 +278,53 @@ def plot_comparison_metrics(data_list, output_path):
     ax2.legend()
     ax2.grid(True, linestyle='--', alpha=0.7)
     
-    # Add a text box with the summary
+    # Set a consistent x-axis limit with 10% extra space for readability
+    try:
+        max_episodes = max([len(data[0].get("rewards", [])) for data in data_list if data[0]])
+        buffer = int(max_episodes * 0.1)  # 10% extra space
+        ax1.set_xlim(0, max_episodes + buffer)
+        ax2.set_xlim(0, max_episodes + buffer)
+    except (ValueError, IndexError) as e:
+        # Handle edge case where we can't compute max episodes
+        print(f"Warning: Could not set axis limits automatically: {e}")
+    
+    # Add a text box with the summary - positioned to the right of the plots
     summary_str = '\n'.join(summary_text)
     props = dict(boxstyle='round', facecolor='white', alpha=0.8)
-    fig.text(0.13, 0, summary_str, fontsize=9, 
-             verticalalignment='bottom', bbox=props)
     
-    plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+    # Position text box with extra width for plenty of space
+    text_ax = fig.add_axes([0.82, 0.1, 0.17, 0.8])  # [left, bottom, width, height]
+    text_ax.axis('off')  # Hide the axis
     
-    # Save the plot
+    # Adjust text positioning within the box and increase font size
+    text_ax.text(0.05, 0.5, summary_str, fontsize=12, 
+             verticalalignment='center', horizontalalignment='left', bbox=props)
+    
+    # Replace tight_layout with more explicit control over subplot arrangement
+    # This avoids the "not compatible with tight_layout" warning
+    # With ultra-wide format, we can push plots further left and have more room for text
+    fig.subplots_adjust(left=0.05, right=0.80, bottom=0.1, top=0.9, hspace=0.3)
+    
+    # Save the plot with high DPI for better detail when zooming
     filename = "training_comparison.png"
-    plt.savefig(output_path / filename, dpi=200)
+    plt.savefig(output_path / filename, dpi=300)
     print(f"Saved comparison to {output_path / filename}")
     
-    # Also show the plot if running in interactive mode
-    plt.show()
+    # Only show the plot if running in an interactive environment with a display available
+    try:
+        # Check if we're in an interactive environment that supports display
+        import matplotlib as mpl
+        if mpl.is_interactive() and not plt.get_backend().lower().startswith('agg'):
+            plt.show()
+    except Exception:
+        # If any issues occur when trying to display, just skip it
+        pass
 
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize training metrics from saved models")
-    parser.add_argument("--checkpoint", type=str, action="append", required=True, 
-                        help="Path to a checkpoint directory containing metrics.json. Can be specified multiple times.")
+    parser.add_argument("--checkpoint", type=str, nargs="+", 
+                        help="Path to checkpoint directories containing metrics.json. Supports glob patterns.")
     parser.add_argument("--labels", type=str, nargs="+", default=None,
                         help="Labels for each checkpoint (must match number of checkpoints)")
     parser.add_argument("--output", type=str, default=None,
@@ -256,10 +338,21 @@ def main():
     if not args.checkpoint:
         print("Error: At least one checkpoint must be specified")
         return
-        
+    
+    # Expand glob patterns in checkpoint paths
+    import glob
+    expanded_checkpoints = []
+    for checkpoint_pattern in args.checkpoint:
+        matches = glob.glob(checkpoint_pattern)
+        if matches:
+            expanded_checkpoints.extend(matches)
+        else:
+            # Keep the original pattern if no matches found
+            expanded_checkpoints.append(checkpoint_pattern)
+    
     # Load metrics from all checkpoints
     data_list = []
-    for i, checkpoint_path in enumerate(args.checkpoint):
+    for i, checkpoint_path in enumerate(expanded_checkpoints):
         data = load_metrics(checkpoint_path)
         if data:
             # Use provided label or generate one from the checkpoint path
