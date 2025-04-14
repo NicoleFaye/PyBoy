@@ -260,8 +260,8 @@ class SB3Agent(BaseAgent):
         elif self.policy_type == "lstm":
             # Configure for LSTM
             if self.algorithm == "DQN":
-                # DQN doesn't support LSTM, so don't add LSTM-specific kwargs
-                self.policy_kwargs = {}
+                # DQN doesn't support LSTM in Stable-Baselines3
+                raise ValueError("DQN does not support LSTM policies in Stable-Baselines3. Please use MLP or CNN policies with DQN, or use PPO or A2C with LSTM.")
             elif not self.policy_kwargs:
                 self.policy_kwargs = {
                     "lstm_hidden_size": 256,
@@ -342,10 +342,9 @@ class SB3Agent(BaseAgent):
                     self.policy_type = "mlp"
                     policy_name = "MlpPolicy"
             elif self.algorithm == "DQN":
-                # DQN doesn't support LSTM policies, so fall back to MLP
-                print("DQN does not support LSTM policies. Falling back to MlpPolicy...")
-                self.policy_type = "mlp"
-                policy_name = "MlpPolicy"
+                # This should never be reached due to the check in __init__
+                # but we'll include it for robustness
+                raise ValueError("DQN does not support LSTM policies in Stable-Baselines3")
             else:
                 policy_name = "MlpLstmPolicy"
         else:

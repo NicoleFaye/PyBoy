@@ -200,15 +200,21 @@ class MultiTrainer:
         # Create checkpoint directory first
         checkpoint_dir = self.generate_checkpoint_path(config)
         
-        # Check for required dependencies based on config
-        if config.get('policy_type') == 'lstm' and config.get('algorithm') == 'ppo':
-            try:
-                import importlib
-                importlib.import_module('sb3_contrib')
-            except ImportError:
-                print(f"Warning: PPO with LSTM policy requires sb3_contrib package.")
-                print(f"Consider installing it with: pip install sb3_contrib")
-                print(f"The training will fall back to MLP policy.")
+        # Check for incompatible configurations and dependencies
+        if config.get('policy_type') == 'lstm':
+            if config.get('algorithm', '').lower() == 'dqn':
+                print(f"Warning: Skipping incompatible configuration - DQN with LSTM policy is not supported")
+                print(f"Algorithm DQN can only be used with 'mlp' or 'cnn' policy types")
+                return None
+                
+            if config.get('algorithm', '').lower() == 'ppo':
+                try:
+                    import importlib
+                    importlib.import_module('sb3_contrib')
+                except ImportError:
+                    print(f"Warning: PPO with LSTM policy requires sb3_contrib package.")
+                    print(f"Consider installing it with: pip install sb3_contrib")
+                    print(f"The training will fall back to MLP policy.")
         
         # Build command with the checkpoint directory
         cmd = self.build_command(config, checkpoint_dir)
