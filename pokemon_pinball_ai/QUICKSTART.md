@@ -20,7 +20,7 @@ This guide provides a step-by-step process to get your Pokemon Pinball AI up and
    # For Stable-Baselines3 agents
    pip install stable-baselines3[extra]
    
-   # For PufferLib support (future integration)
+   # For PufferLib agents (now fully implemented)
    pip install pufferlib
    ```
 
@@ -114,9 +114,46 @@ python train.py --rom pinball.gbc --agent dqn \
     --exploration-rate-decay 0.9999
 ```
 
+## PufferLib Training (Population-Based)
+
+PufferLib offers population-based training which can be better for tuning and exploration.
+
+### Basic PufferLib Training
+
+```bash
+python train_puffer.py --rom pinball.gbc --reward-shaping comprehensive
+```
+
+### Advanced PufferLib Options
+
+```bash
+python train_puffer.py --rom pinball.gbc --reward-shaping comprehensive --timesteps 2000000 --num-envs 4 --population-size 8 --frame-stack 4
+```
+
+### Resuming PufferLib Training
+
+```bash
+python train_puffer.py --rom pinball.gbc --checkpoint checkpoints/puffer_ppo_comprehensive/final.pt --model-name puffer_continued
+```
+
+### Why Use PufferLib?
+
+PufferLib offers several advantages for reinforcement learning training:
+
+1. **Population-Based Training**: Maintains a population of agents with different parameters, making it easier to tune hyperparameters automatically.
+
+2. **Better Exploration**: The population approach naturally encourages more diverse exploration strategies.
+
+3. **Robustness**: Less sensitive to initial conditions and hyperparameter choices, often leading to more stable training.
+
+4. **Easier Tuning**: With population-based training, the system can automatically adjust hyperparameters during training.
+
+For beginners or when tuning is difficult, PufferLib may provide better results with less manual adjustment.
+
 ## Next Steps
 
 - Check `DOCUMENTATION.md` for complete details on how the system works
 - Explore the metrics available from the game wrapper
 - Try creating your own custom reward function
 - Experiment with different network architectures
+- Compare results between SB3 and PufferLib approaches
