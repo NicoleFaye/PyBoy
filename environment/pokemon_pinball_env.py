@@ -128,7 +128,7 @@ class PokemonPinballEnv(gym.Env):
             reward = self.reward_shaping(self._fitness, self._previous_fitness, self._game_wrapper, self._frames_played)
         else:
             reward = self._fitness - self._previous_fitness
-            
+            """
         # Track maximum reward for debugging
         if not hasattr(self, "max_step_reward") or reward > self.max_step_reward:
             self.max_step_reward = reward
@@ -138,7 +138,7 @@ class PokemonPinballEnv(gym.Env):
         # Track extreme cases - very small or very large rewards
         if getattr(self, "debug", False) and (abs(reward) < 0.001 or abs(reward) > 1000):
             print(f"REWARD_EXTREME: Frame {self._frames_played}, Reward: {reward}, Score: {self._fitness}")
-            
+            """
         # Get observation
         observation = self._get_obs()
         
@@ -389,6 +389,6 @@ class RewardShaping:
             if events:
                 log_message += f" | Events: {', '.join(events)}"
                 
-            print(f"REWARD_LOG: {log_message}")
+            #print(f"REWARD_LOG: {log_message}")
 
         return total_reward
