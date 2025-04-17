@@ -1,3 +1,4 @@
+import time
 from pyboy import PyBoy
 from pyboy.plugins.game_wrapper_pokemon_pinball import Pokemon, Stage
 from pyboy.utils import WindowEvent, bcd_to_dec
@@ -18,10 +19,12 @@ minX = 0
 minY = 0
 maxX = 0
 maxY = 0
+print(pyboy.screen.ndarray.shape)
 while True:
     i += 1
     pyboy.tick()
-    if(i%20 == 0):
+    """
+    if(True):
         print("Velocity X: ", pinball.ball_x_velocity)
         print("Velocity Y: ", pinball.ball_y_velocity)
         print("Ball X: ", pinball.ball_x)
@@ -32,7 +35,7 @@ while True:
         print("Min Y: ", minY)
         print("Max X: ", maxX)
         print("Max Y: ", maxY)
-
+"""
     if(maxVelocity < pinball.ball_x_velocity):
         maxVelocity = pinball.ball_x_velocity
     if(maxVelocity < pinball.ball_y_velocity):
@@ -49,4 +52,6 @@ while True:
         maxX = pinball.ball_x
     if(maxY < pinball.ball_y):
         maxY = pinball.ball_y
+    # wait for 1 second before ticking
+    time.sleep(1)
 
