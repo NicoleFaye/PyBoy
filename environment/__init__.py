@@ -8,14 +8,6 @@ try:
     from environment.pokemon_pinball_env import PokemonPinballEnv, Actions, RewardShaping
     from environment.wrappers import SkipFrame, FrameStack
     
-    # Try to import PufferLib environment
-    try:
-        import pufferlib
-        from environment.puffer_wrapper import PufferPokemonPinballEnv, make_puffer_env
-        PUFFERLIB_AVAILABLE = True
-    except ImportError:
-        # PufferLib environment is not available
-        PUFFERLIB_AVAILABLE = False
         
 except ImportError as e:
     print(f"Error importing environment modules: {e}")
@@ -28,10 +20,3 @@ __all__ = [
     'SkipFrame',
     'FrameStack'
 ]
-
-# Add PufferLib components if available
-if PUFFERLIB_AVAILABLE:
-    __all__.extend([
-        'PufferPokemonPinballEnv',
-        'make_puffer_env'
-    ])

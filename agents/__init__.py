@@ -21,17 +21,12 @@ try:
 except ImportError:
     SB3Agent = None
 
-try:
-    from agents.puffer_agent import PufferAgent
-except ImportError:
-    PufferAgent = None
 
 # Map of agent types to their classes
 AGENT_TYPES = {
     "base": BaseAgent,
     "dqn": DQNAgent,
     "sb3": SB3Agent,
-    "puffer": PufferAgent
 }
 
 def get_agent_class(agent_type: str) -> Optional[Type]:

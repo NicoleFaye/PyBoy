@@ -20,6 +20,7 @@ minY = 0
 maxX = 0
 maxY = 0
 print(pyboy.screen.ndarray.shape)
+print(pyboy.game_area().shape)
 while True:
     i += 1
     pyboy.tick()
@@ -36,6 +37,8 @@ while True:
         print("Max X: ", maxX)
         print("Max Y: ", maxY)
 """
+    print(pyboy.game_wrapper.lost_ball_during_saver)
+
     if(maxVelocity < pinball.ball_x_velocity):
         maxVelocity = pinball.ball_x_velocity
     if(maxVelocity < pinball.ball_y_velocity):
@@ -53,5 +56,5 @@ while True:
     if(maxY < pinball.ball_y):
         maxY = pinball.ball_y
     # wait for 1 second before ticking
-    time.sleep(1)
+    #time.sleep(1)
 
